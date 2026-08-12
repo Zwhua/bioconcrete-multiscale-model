@@ -5,7 +5,10 @@ import numpy as np
 
 from bioconcrete.chemistry import alkalinity_from_ph, carbonate_fractions, ph_from_alkalinity
 from bioconcrete.config import ModelConfig
-from bioconcrete.model import S, STATE_NAMES, repair_metrics, simulate_0d, simulate_1d, simulate_2d
+from bioconcrete.model import (
+    S, STATE_NAMES, _capsule_profile_1d, _capsule_profile_2d, _initial_state,
+    _inventory, repair_metrics, simulate_0d, simulate_1d, simulate_2d,
+)
 
 
 class ModelTests(unittest.TestCase):
@@ -80,6 +83,48 @@ class ModelTests(unittest.TestCase):
             metrics["total_solid_volume_m3"],
         )
 
+    def test_initial_capsule_inventory_matches_across_scales(self):
+        config = self.short_config()
+        config.transport.out_of_plane_thickness_mm = config.transport.crack_depth_mm
+        _, profile_1d = _capsule_profile_1d(config)
+        _, _, profile_2d = _capsule_profile_2d(config)
+        states = {
+            "0d": _initial_state(config, np.ones(1)),
+            "1d": _initial_state(config, profile_1d),
+            "2d": _initial_state(config, profile_2d.ravel()),
+        }
+        inventory = {
+            level: _inventory(state, config, level)["capsule_calcium_lactate_mol"]
+            for level, state in states.items()
+        }
+        self.assertAlmostEqual(inventory["0d"], inventory["1d"], places=12)
+        self.assertAlmostEqual(inventory["0d"], inventory["2d"], places=12)
+
+    def test_capsule_inventory_is_grid_independent(self):
+        coarse = self.short_config()
+        fine = copy.deepcopy(coarse)
+        coarse.transport.nx_1d = 21
+        fine.transport.nx_1d = 81
+        _, coarse_profile = _capsule_profile_1d(coarse)
+        _, fine_profile = _capsule_profile_1d(fine)
+        coarse_inventory = _inventory(
+            _initial_state(coarse, coarse_profile), coarse, "1d"
+        )["capsule_calcium_lactate_mol"]
+        fine_inventory = _inventory(
+            _initial_state(fine, fine_profile), fine, "1d"
+        )["capsule_calcium_lactate_mol"]
+        self.assertAlmostEqual(coarse_inventory, fine_inventory, places=12)
+
+    def test_spatial_calcite_summary_is_volume_integrated(self):
+        config = self.short_config()
+        config.transport.nx_1d = 9
+        result = simulate_1d(config)
+        final = result.frame.loc[result.frame["time_d"] == result.frame["time_d"].max()]
+        integrated = float(np.sum(final["calcite_mol_m3"] * final["cell_volume_m3"]))
+        self.assertAlmostEqual(
+            integrated, result.diagnostics["final_inventory"]["calcite_mol"], places=12
+        )
+
     def test_same_solid_volume_closes_narrower_crack_more(self):
         narrow = self.short_config()
         wide = copy.deepcopy(narrow)
@@ -142,7 +187,7 @@ class ModelTests(unittest.TestCase):
 
     def test_and_gate_requires_each_dynamic_signal(self):
         config = self.short_config()
-        config.simulation.days = 0.2
+        config.simulation.days = 0.5
         config.kinetics.gate_logic = "AND"
         config.kinetics.oxygen_rise_threshold_mol_m3_h = 1.0e6
         blocked_oxygen = simulate_0d(config)
@@ -184,8 +229,8 @@ class ModelTests(unittest.TestCase):
         config.kinetics.ph_drop_threshold_h = -1.0
         config.kinetics.ph_width = 100.0
         config.kinetics.oxygen_threshold_mol_m3 = 0.0
-        config.kinetics.activation_duration_h = 0.01
-        config.kinetics.response_delay_h = 0.01
+        config.kinetics.activation_duration_h = 0.1
+        config.kinetics.response_delay_h = 0.1
         result = simulate_0d(config)
         self.assertGreater(result.frame["activation_state"].max(), 0.5)
         self.assertGreater(result.frame["activation_delay_h"].iloc[-1], 0.0)

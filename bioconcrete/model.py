@@ -531,7 +531,31 @@ def _state_frame(state: np.ndarray, time_d: float, config: ModelConfig, coordina
     return pd.DataFrame(values)
 
 
-def _diagnostics(initial: np.ndarray, final: np.ndarray, config: ModelConfig) -> Dict[str, object]:
+def _inventory(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, float]:
+    cell_volume, _ = _uniform_cell_geometry(config, level, state.shape[0])
+    cap = state[:, S["capsule_calcium_lactate_mol_m3"]]
+    carbon = (
+        6.0 * cap + 3.0 * state[:, S["lactate_mol_m3"]]
+        + state[:, S["inorganic_carbon_mol_m3"]]
+        + state[:, S["calcite_mol_m3"]]
+        + state[:, S["biomass_carbon_mol_m3"]]
+    )
+    calcium = (
+        cap + state[:, S["calcium_mol_m3"]]
+        + state[:, S["portlandite_mol_m3"]]
+        + state[:, S["calcite_mol_m3"]]
+    )
+    return {
+        "capsule_calcium_lactate_mol": float(np.sum(cap * cell_volume)),
+        "carbon_mol": float(np.sum(carbon * cell_volume)),
+        "calcium_mol": float(np.sum(calcium * cell_volume)),
+        "calcite_mol": float(np.sum(state[:, S["calcite_mol_m3"]] * cell_volume)),
+    }
+
+
+def _diagnostics(
+    initial: np.ndarray, final: np.ndarray, config: ModelConfig, level: str
+) -> Dict[str, object]:
     before = _balance(initial)
     after = _balance(final)
     errors = {
@@ -540,6 +564,8 @@ def _diagnostics(initial: np.ndarray, final: np.ndarray, config: ModelConfig) ->
     return {
         "initial_balance": before,
         "final_balance": after,
+        "initial_inventory": _inventory(initial, config, level),
+        "final_inventory": _inventory(final, config, level),
         "relative_balance_change": errors,
         "closed_system": config.simulation.closed_system,
         "nonnegative": bool(np.min(final) >= -1e-10),
@@ -566,7 +592,7 @@ def simulate_0d(config: Optional[ModelConfig] = None, geochem: Optional[GeochemL
             state = _reaction_step(state, time_s, dt, config, geochem)
             time_s += dt
         frames.append(_state_frame(state, target / SECONDS_PER_DAY, config, {}))
-    return SimulationResult("0d", pd.concat(frames, ignore_index=True), _summary(state, config, "0d"), _diagnostics(initial, state, config), config)
+    return SimulationResult("0d", pd.concat(frames, ignore_index=True), _summary(state, config, "0d"), _diagnostics(initial, state, config, "0d"), config)
 
 
 def _capsule_profile_1d(config: ModelConfig) -> Tuple[np.ndarray, np.ndarray]:
@@ -577,8 +603,8 @@ def _capsule_profile_1d(config: ModelConfig) -> Tuple[np.ndarray, np.ndarray]:
     sigma = max(trans.capsule_spread_mm, 1e-6)
     for center in centers:
         profile += np.exp(-0.5 * ((x - center) / sigma) ** 2)
-    target_mean = min(trans.capsule_count_1d * np.sqrt(2.0 * np.pi) * sigma / trans.crack_length_mm, 1.0)
-    profile *= target_mean / max(float(np.mean(profile)), 1e-30)
+    # Dose is configured independently; capsule count controls spatial discreteness.
+    profile *= 1.0 / max(float(np.mean(profile)), 1e-30)
     return x, profile
 
 
@@ -595,13 +621,8 @@ def _capsule_profile_2d(config: ModelConfig) -> Tuple[np.ndarray, np.ndarray, np
     sigma_y = max(trans.crack_width_mm / 5.0, 1e-6)
     for center_x, center_y in zip(centers_x, centers_y):
         profile += np.exp(-0.5 * ((xx - center_x) / sigma_x) ** 2 - 0.5 * ((yy - center_y) / sigma_y) ** 2)
-    # Centers lie near a wall, so approximately half of each y-Gaussian is in
-    # the crack. Exact mean normalization makes capsule inventory grid-invariant.
-    target_mean = min(
-        trans.capsule_count_2d * np.pi * sigma_x * sigma_y / (trans.crack_length_mm * trans.crack_width_mm),
-        1.0,
-    )
-    profile *= target_mean / max(float(np.mean(profile)), 1e-30)
+    # Exact mean normalization keeps dose fixed while count changes discreteness.
+    profile *= 1.0 / max(float(np.mean(profile)), 1e-30)
     return xx, yy, profile
 
 
@@ -748,7 +769,7 @@ def _spatial_simulation(
                 state = _transport_step(state, time_s, dt, config, shape)
             time_s += dt
         frames.append(_state_frame(state, target / SECONDS_PER_DAY, config, coordinates))
-    diagnostics = _diagnostics(initial, state, config)
+    diagnostics = _diagnostics(initial, state, config, level)
     diagnostics["grid_shape"] = list(shape)
     diagnostics["true_spatial_solver"] = True
     return SimulationResult(level, pd.concat(frames, ignore_index=True), _summary(state, config, level), diagnostics, config)

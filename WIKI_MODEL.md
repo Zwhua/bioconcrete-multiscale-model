@@ -54,6 +54,16 @@ sum to the total deposited-solid volume.
 
 `healing_ratio` remains only as a deprecated file-format alias.
 
+## Cross-scale accounting
+
+The configured dose is independent of the number of discrete capsule sources.
+Source count changes spatial heterogeneity, while each profile is normalized so
+its volume-weighted mean inventory is unchanged by grid refinement. Total
+calcite, carbon, calcium and capsule inventories are computed as sums of local
+concentration times cell volume. Comparisons across 0D, 1D and 2D require the
+same physical crack volume; in particular, the 2D out-of-plane thickness must
+match the depth used by 0D/1D.
+
 ## Calibration and blind validation
 
 Dataset A is split by specimen, so time points from one specimen cannot cross

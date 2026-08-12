@@ -14,6 +14,11 @@ biological design information or construction details are stored or inferred.
 - `2d`: a true length-by-width finite-volume grid with discrete capsule source
   fields. It is not an interpolation of the 1D result.
 
+Across scales, repair-material dose and total elemental inventories are
+volume-integrated. Capsule count controls source discreteness rather than total
+dose. A numerical 0D/1D/2D comparison is valid only after crack volume,
+boundary conditions and initial inventories have been matched explicitly.
+
 The tracked calcium-lactate pathway is ammonia-free. `ammonium_mol_m3` is kept
 as a diagnostic state and must remain exactly zero.
 
