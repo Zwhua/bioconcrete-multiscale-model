@@ -1,0 +1,23 @@
+name: formal-analysis
+
+on:
+  workflow_dispatch:
+
+jobs:
+  formal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e .
+      - name: Formal Sobol analysis
+        run: python -m bioconcrete formal-sensitivity --samples 512 --output model_runs/formal_sensitivity
+      - name: Full preregistered design matrix
+        run: python -m bioconcrete design-matrix --workers 2 --resume --output model_runs/design_matrix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formal-analysis
+          path: model_runs/

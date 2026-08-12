@@ -1,0 +1,49 @@
+schema_version: 1
+release_candidate: v0.4.0
+status: prospective model predictions requiring future experimental validation
+team_wet_lab_data_available: false
+predictions:
+  - prediction_id: PRED-V4-001
+    biological_or_material_question: Does doubling effective activity materially improve 28-day closure?
+    input_conditions: 0.3 mm crack, fixed total inventory, 12 h/day wetting, activity 1x versus 2x
+    point_prediction: Closure gain will be smaller than the gain from doubling complete repair-agent dose.
+    prediction_interval: prior predictive interval must be generated before execution
+    success_threshold: activity gain is less than 10% of dose gain
+    failure_threshold: activity gain equals or exceeds dose gain
+    applicability_domain: configured calcium-lactate and fixed-total-inventory model
+    required_future_measurement: paired substrate depletion, CaCO3 mass and closure at 1, 7, 14 and 28 days
+    evidence_class: prospective model prediction requiring future experimental validation
+    falsifies: the assumption that current performance is primarily activity-limited
+  - prediction_id: PRED-V4-002
+    biological_or_material_question: Does wider cracking reduce closure despite equal repair inventory?
+    input_conditions: 0.1, 0.3 and 0.5 mm cracks with identical total agent inventory and conditioning
+    point_prediction: 0.5 mm cracks will close less than 0.3 mm cracks even if total mineral mass is comparable.
+    prediction_interval: prior predictive interval must be generated before execution
+    success_threshold: median closure at 0.5 mm is below median closure at 0.3 mm
+    failure_threshold: 0.5 mm closure equals or exceeds 0.3 mm closure
+    applicability_domain: 0.1-0.5 mm cracks with matched volume-integrated inventory
+    required_future_measurement: initial/current width maps and recovered CaCO3 mass
+    evidence_class: prospective model prediction requiring future experimental validation
+    falsifies: the current wall-deposition geometry mapping if mass is matched
+  - prediction_id: PRED-V4-003
+    biological_or_material_question: Is continuous wetting beneficial because of oxygen availability?
+    input_conditions: 12 h/day intermittent versus continuous wetting with matched dose and crack width
+    point_prediction: continuous wetting improves closure only when oxygen transfer remains available.
+    prediction_interval: prior predictive interval must be generated before execution
+    success_threshold: continuous wetting increases oxygen exposure and closure together
+    failure_threshold: closure improves without oxygen exposure or declines despite higher oxygen
+    applicability_domain: current boundary-transfer assumptions; not a universal curing claim
+    required_future_measurement: dissolved oxygen, moisture state, substrate and closure time series
+    evidence_class: prospective model prediction requiring future experimental validation
+    falsifies: the assumed oxygen-transfer explanation for wetting benefit
+  - prediction_id: PRED-V4-004
+    biological_or_material_question: Is most early closure caused by released C-S-H rather than CaCO3?
+    input_conditions: complete system, abiotic C-S-H control and no-C-S-H control
+    point_prediction: the abiotic C-S-H control explains a substantial fraction of early closure.
+    prediction_interval: prior predictive interval must be generated before execution
+    success_threshold: early C-S-H closure contribution exceeds calcite contribution
+    failure_threshold: calcite contribution dominates from the first measured day
+    applicability_domain: current payload and wall-deposition priors
+    required_future_measurement: abiotic control, mineral phase mass and crack-width microscopy
+    evidence_class: prospective model prediction requiring future experimental validation
+    falsifies: the current C-S-H payload/release prior

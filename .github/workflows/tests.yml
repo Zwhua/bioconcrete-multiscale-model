@@ -7,11 +7,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install package
         run: python -m pip install -e .
@@ -19,6 +22,14 @@ jobs:
         run: |
           python -m compileall -q bioconcrete
           python -m unittest discover -s tests -v
+          git diff --check
+      - name: Validate configuration files
+        run: |
+          python -c "import json,yaml; json.load(open('model_config.json')); yaml.safe_load(open('PREREGISTERED_SCENARIOS.yml')); yaml.safe_load(open('PROSPECTIVE_PREDICTIONS.yml'))"
+      - name: CLI smoke tests
+        run: |
+          python -m bioconcrete audit-units --output model_runs/ci-unit-audit.csv
+          python -m bioconcrete design-experiments --output model_runs/ci-experiment-design
+          python -m bioconcrete dashboard --output model_runs/ci-dashboard
       - name: Run quick physical validation
         run: python -m bioconcrete validate --config model_config.json --output model_runs/ci-validation
-

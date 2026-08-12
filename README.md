@@ -3,13 +3,13 @@
   <h1>BioConcrete Multiscale Model</h1>
   <p><strong>自修复混凝土多尺度反应传输、公开数据校准与不确定性分析工程</strong></p>
   <p>
-    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/version-v0.3.0-176b87" alt="Version v0.3.0"></a>
+    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/version-v0.4.0-176b87" alt="Version v0.4.0"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.8%2B-3776ab" alt="Python 3.8+"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f855a" alt="MIT License"></a>
   </p>
 </div>
 
-当前软件版本为 **v0.3.0**。版本号按
+当前软件版本为 **v0.4.0**。版本号按
 [Semantic Versioning](VERSIONING.md) 维护：兼容修复递增 PATCH，新增兼容功能或科学行为调整递增 MINOR，不兼容接口或数据格式调整递增 MAJOR。每次发布前会同步代码、README、引用信息和 Git 标签。
 
 本项目建立一个从修复材料释放、环境响应、碳酸盐化学和矿物沉积，一直连接到裂缝闭合与材料性能恢复的数学模型。工程提供可复现的 `0D`、`1D` 和真实 `2D` 求解器，以及公开数据处理、参数校准、独立验证、敏感性分析和预注册设计工具。
@@ -217,6 +217,8 @@ crack_closure_ratio
 | 指标 | 28 天结果 |
 | --- | ---: |
 | 平均裂缝闭合率 | **2.0819%** |
+| 方解石闭合贡献 | **0.00168 percentage points** |
+| C-S-H 闭合贡献 | **2.08023 percentage points** |
 | 相对渗透率 | **0.9079** |
 | 相对裂缝导流能力 | **0.9388** |
 | 方解石浓度 | **0.6049 mol/m3** |
@@ -224,7 +226,11 @@ crack_closure_ratio
 | 按默认裂缝体积计算的方解石总质量 | **0.03632 mg** |
 | 铵态氮诊断量 | **0 mol/m3** |
 
-这个结果说明：当前先验参数不会自动得到 80% 的目标闭合率。模型给出了一个保守、可追溯的起点，也表明释放速率、有效活性、壁面沉积分数和湿润/供氧条件需要公开实验或项目实验校准。
+这个结果说明：当前先验参数不会自动得到 80% 的目标闭合率。总闭合中约
+`99.92%` 来自模型设定的 C-S-H 载荷，方解石贡献约 `0.08%`。因此当前基线
+不是活性受限修复的证据，而是一个以初始复合填充为主的待检验先验。优先实验
+应同时测量方解石质量、裂缝宽度和无 C-S-H 对照，以识别壁面沉积映射并排除
+重复计量。
 
 `80%` 仅是评价目标线，从未被写入方程或强制拟合。
 
@@ -260,15 +266,15 @@ crack_closure_ratio
 
 ## 数值验证结果
 
-当前共 **34 项自动测试全部通过**。最新快速验收结果：
+当前 `62` 项自动测试覆盖物理极限、可识别性、不确定性、实验设计、运行溯源和证据边界。最新快速验收结果：
 
 | 检查 | 结果 | 验收阈值 |
 | --- | ---: | ---: |
 | 封闭体系碳守恒误差 | `4.55e-16` | `< 0.5%` |
-| 封闭体系钙守恒误差 | `4.20e-16` | `< 0.5%` |
-| 时间步减半差异 | `2.23e-7` | `< 5%` |
-| 1D 网格加密差异 | `6.71e-12` | `< 5%` |
-| 2D 网格加密差异 | `1.17e-10` | `< 5%` |
+| 封闭体系钙守恒误差 | `0` | `< 0.5%` |
+| 时间步减半差异 | `1.83e-6` | `< 5%` |
+| 1D 网格加密差异 | `7.31e-7` | `< 5%` |
+| 2D 网格加密差异 | `3.15e-7` | `< 5%` |
 | 无修复源矿化量 | `0` | `< 1e-10 mol/m3` |
 | 无氧矿化 | `0` | 必须为 `0` |
 | 沉淀关闭且无复合填充时闭合率 | `0` | 必须为 `0` |
@@ -358,18 +364,34 @@ python -m pip install -e . --no-build-isolation
 生成最新默认配置，不建议继续使用旧版本配置文件：
 
 ```powershell
-python -m bioconcrete default-config --output config-v0.3.0.json
+python -m bioconcrete default-config --output config-v0.4.0.json
 ```
 
 运行模型与验证：
 
 ```powershell
-python -m bioconcrete simulate --level 0d --config config-v0.3.0.json
-python -m bioconcrete simulate --level 1d --config config-v0.3.0.json
-python -m bioconcrete simulate --level 2d --config config-v0.3.0.json
-python -m bioconcrete validate --config config-v0.3.0.json
+python -m bioconcrete simulate --level 0d --config config-v0.4.0.json
+python -m bioconcrete simulate --level 1d --config config-v0.4.0.json
+python -m bioconcrete simulate --level 2d --config config-v0.4.0.json
+python -m bioconcrete validate --config config-v0.4.0.json
 python -m unittest discover -s tests -v
 ```
+
+V4 分析命令：
+
+```powershell
+python -m bioconcrete identifiability --output model_runs/identifiability
+python -m bioconcrete prior-predictive --samples 256 --resume --output model_runs/prior_predictive
+python -m bioconcrete compare-models --output model_runs/model_comparison
+python -m bioconcrete design-experiments --output model_runs/experiment_design
+python -m bioconcrete design-matrix --workers 8 --resume --output model_runs/design_matrix
+python -m bioconcrete dashboard --output model_runs/dashboard
+```
+
+`identifiability` 不把 Sobol 高敏感参数等同为可识别参数；
+`prior-predictive` 在没有校准时只输出先验预测区间；模型结构对比在没有真实观测时不会计算 AIC/AICc。正式分析均生成 `run_manifest.json`，dirty worktree 会产生发布警告。
+
+前瞻性预测见 [PROSPECTIVE_PREDICTIONS.yml](PROSPECTIVE_PREDICTIONS.yml)，模型指导的 DBTL 计划见 [DBTL_MODEL_PLAN.md](DBTL_MODEL_PLAN.md)。两者均标注为等待湿实验执行，当前不存在已完成的团队实验闭环。
 
 运行数据与证据链：
 
@@ -434,6 +456,10 @@ WIKI_MODEL.md           iGEM Wiki 风格模型页面
 5. 公开数据校准、冻结外部验证和正式不确定性工具已经实现，但尚缺本地导入的公开原始实验文件。
 6. 当前最重要的下一步是完成数据集 A/B 的字段核验、正式校准和独立验证，而不是继续增加模型复杂度。
 
+十项关键科学问题的逐项审计见
+[SCIENTIFIC_AUDIT_V0.4.0.md](SCIENTIFIC_AUDIT_V0.4.0.md)，发布完成度与证据缺口见
+[RELEASE_CHECKLIST_V0.4.0.md](RELEASE_CHECKLIST_V0.4.0.md)。
+
 ## 限制与下一步
 
 - 当前没有团队自己的湿实验数据，模型不能用于工程安全决策。
@@ -445,7 +471,7 @@ WIKI_MODEL.md           iGEM Wiki 风格模型页面
 
 ## 版本、许可与引用
 
-- 当前版本：`v0.3.0`
+- 当前版本：`v0.4.0`
 - 许可证：[MIT](LICENSE)
 - 引用信息：[CITATION.cff](CITATION.cff)
 - 技术说明：[MODELING.md](MODELING.md)

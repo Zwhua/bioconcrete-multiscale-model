@@ -25,6 +25,9 @@ from .identifiability import identifiability_analysis
 from .uncertainty import prior_predictive
 from .experiment_design import rank_experiments
 from .model_comparison import compare_structures
+from .dashboard import generate_dashboard
+from .decision_support import generate_decision_support
+from .manifest import create_manifest, finish_manifest, write_manifest
 
 
 def _root() -> Path:
@@ -121,6 +124,15 @@ def build_parser() -> argparse.ArgumentParser:
     experiments.add_argument("--config")
     experiments.add_argument("--output", default="model_runs/experiment_design")
 
+    dashboard = subparsers.add_parser("dashboard", help="generate a read-only static evidence dashboard")
+    dashboard.add_argument("--output", default="model_runs/dashboard")
+
+    decisions = subparsers.add_parser("decision-support", help="build model-informed decision tables")
+    decisions.add_argument("--design-matrix", default="model_runs/design_matrix/design_matrix.csv")
+    decisions.add_argument("--config-hash", required=True)
+    decisions.add_argument("--code-hash", required=True)
+    decisions.add_argument("--output", default="model_runs/decision_support")
+
     public_cal = subparsers.add_parser("calibrate-public", help="fit public calibration data with specimen holdout")
     public_cal.add_argument("--train", required=True)
     public_cal.add_argument("--config")
@@ -212,25 +224,45 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(sobol.sort_values("ST", ascending=False).to_string(index=False))
         return
     if args.command == "formal-sensitivity":
+        manifest = create_manifest(root, _config(args.config), ["formal-sensitivity"], 2026)
         _, sobol = formal_sensitivity(Path(args.output), _config(args.config), args.samples)
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(sobol.sort_values("ST", ascending=False).to_string(index=False))
         return
     if args.command == "identifiability":
+        manifest = create_manifest(root, _config(args.config), ["identifiability"], 2026)
         result = identifiability_analysis(Path(args.output), _config(args.config))
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
     if args.command == "prior-predictive":
+        manifest = create_manifest(root, _config(args.config), ["prior-predictive"], args.seed)
         result = prior_predictive(
             Path(args.output), _config(args.config), args.samples, args.seed, resume=args.resume
         )
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
     if args.command == "compare-models":
+        manifest = create_manifest(root, _config(args.config), ["compare-models"], 2026)
         result = compare_structures(Path(args.output), _config(args.config))
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
     if args.command == "design-experiments":
+        manifest = create_manifest(root, _config(args.config), ["design-experiments"], 2026)
         result = rank_experiments(Path(args.output), _config(args.config))
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "dashboard":
+        result = generate_dashboard(root, Path(args.output))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "decision-support":
+        result = generate_decision_support(
+            Path(args.design_matrix), Path(args.output), args.config_hash, args.code_hash
+        )
         print(json.dumps(result, indent=2))
         return
     if args.command == "calibrate-public":
@@ -254,10 +286,15 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(path.resolve())
         return
     if args.command == "design-matrix":
+        manifest = create_manifest(
+            root, _config(args.config), ["design-matrix"], 2026,
+            {"preregister": Path(args.preregister)},
+        )
         result = design_matrix(
             Path(args.preregister), Path(args.output), _config(args.config),
             args.limit, args.workers, args.resume,
         )
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
     if args.command == "evidence-report":

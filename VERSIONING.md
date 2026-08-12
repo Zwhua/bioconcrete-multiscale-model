@@ -24,8 +24,13 @@ actually produced them.
 
 ## Current Release
 
-`v0.3.0` formalizes the multi-output staged calibration workflow, explicit
-environmental gate logic, volume-conserving deposition geometry, cross-scale
-inventory accounting, and reviewed-public-data requirements. It does not claim
-that public calibration or external validation has completed; those stages
-remain blocked until the selected source files are downloaded and curated.
+`v0.4.0` adds fixed-total-inventory dose semantics, practical identifiability,
+prior predictive uncertainty, mechanistic model comparison, bottleneck
+classification, D-optimal experiment ranking, resumable parallel design
+matrices, unified run manifests, and prospective decision-support artifacts.
+It does not claim that public calibration, external validation, or a team wet-lab
+DBTL cycle has completed.
+
+`v0.3.0` remains the historical release that introduced multi-output staged
+calibration, explicit environmental gate logic, volume-conserving deposition
+geometry, and reviewed-public-data requirements.

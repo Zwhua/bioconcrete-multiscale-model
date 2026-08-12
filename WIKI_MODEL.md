@@ -78,6 +78,22 @@ SHA-256 digest. Dataset B can only enter the external-validation command, which
 contains no optimizer and rejects modified frozen configurations. It reports
 the mechanistic model beside zero-mineralization and first-order baselines.
 
+## How the model changes experimental design
+
+The V4 candidate separates sensitivity from estimability, ranks future
+measurements by a D-optimal information proxy, classifies activity, substrate,
+calcium, oxygen, transport, geometry and release bottlenecks, and preserves
+negative findings. In particular, negligible benefit from increasing aggregate
+activity is treated as evidence of another model bottleneck, not removed from
+the narrative.
+
+The minimum future experiment set combines closure with CaCO3 mass, substrate,
+oxygen/calcium chemistry and an abiotic C-S-H control. Predictions and failure
+thresholds are preregistered in `PROSPECTIVE_PREDICTIONS.yml`.
+
+**Evidence status:** Model-informed experimental plan. Prospective DBTL loop.
+Awaiting wet-lab execution. Not experimentally validated.
+
 Dataset C is restricted to crack-width measurement error. Its uncertainty is
 not used to fit reaction kinetics.
 
