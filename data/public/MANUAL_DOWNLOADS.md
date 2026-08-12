@@ -14,7 +14,7 @@ normal browser and place the files at the exact paths below:
    be restricted. Download only the tabular crack-width labels, when permitted,
    to `data/public/raw/krkcmd/`. Do not download images for this model task.
 
-Then run:
+Then run candidate discovery:
 
 ```powershell
 python -m bioconcrete prepare-public-data --dataset transet_18clsu02
@@ -23,5 +23,13 @@ python -m bioconcrete prepare-public-data --dataset marine_external
 
 Before scientific use, compare local SHA-256 hashes with a generated receipt or
 the publisher's checksums. Raw files and local derived tables remain ignored by
-Git. Review every `source_location` row before calibration; the conservative
-generic extractor intentionally leaves ambiguous fields empty.
+Git. The generated rows are marked `candidate_only` and cannot be calibrated.
+Review every `source_location`, complete the curated observations and dictionary
+under `data/public/curated/`, and set dictionary `reviewer_status=approved` only
+after independent source verification. The conservative generic extractor
+intentionally leaves ambiguous fields empty.
+
+Current audit (2026-08-12): the raw folders contain no selected files. Automated
+metadata access was intermittent; the selected file endpoint returned HTTP 403
+and the record page later returned HTTP 429. Calibration freeze and external
+validation therefore remain blocked, and no replacement observations were made.
