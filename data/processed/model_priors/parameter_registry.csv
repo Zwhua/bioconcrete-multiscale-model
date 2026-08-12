@@ -1,0 +1,11 @@
+parameter,default_value,unit,source_class,source_note,lower_bound,upper_bound
+kinetics.qmax_lactate_mol_m3_s,0.0025,mol m^-3 s^-1,model prior,aggregate substrate utilization rate; requires calibration,5e-05,0.01
+kinetics.k_lactate_mol_m3,350.0,mol m^-3,database aggregate,public kinetic records summarized without sequence information,1.0,5000.0
+kinetics.k_oxygen_mol_m3,0.035,mol m^-3,literature prior,aerobic Monod half-saturation,0.005,0.2
+kinetics.decay_s,1.5e-07,s^-1,literature prior,protected population-scale decay,1e-08,2e-06
+kinetics.capsule_release_s,1.3e-06,s^-1,project hypothesis,effective release rate,1e-07,3e-05
+chemistry.calcite_rate_mol_m3_s,0.0001,mol m^-3 s^-1,literature prior,saturation-index precipitation law,1e-07,0.01
+chemistry.calcite_ksp,3.31e-09,mol^2 L^-2,thermodynamic database,PHREEQC calcite at ambient temperature,2.5e-09,5e-09
+transport.diffusivity_oxygen_m2_s,1.9e-09,m^2 s^-1,literature prior,aqueous oxygen/CO2 scale,5e-10,3e-09
+transport.crack_width_mm,0.3,mm,project experiment,planned crack range 0.1-0.5 mm,0.05,0.5
+chemistry.portlandite_mol_m3,5000.0,mol m^-3,project hypothesis,effective crack-adjacent reservoir,100.0,15000.0

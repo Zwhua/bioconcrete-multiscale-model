@@ -1,0 +1,18 @@
+{
+  "initial_balance": {
+    "carbon": 48000.0,
+    "calcium": 13000.0
+  },
+  "final_balance": {
+    "carbon": 48000.000000000124,
+    "calcium": 12999.999999999924
+  },
+  "relative_balance_change": {
+    "carbon": 2.576901655023297e-15,
+    "calcium": 5.876734996071228e-15
+  },
+  "closed_system": false,
+  "nonnegative": true,
+  "ammonia_free": true,
+  "note": "Open-system balance changes include boundary transport and oxygen exchange."
+}

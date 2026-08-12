@@ -1,0 +1,11 @@
+ec_number,parameter,unit,source,count,minimum,q25,median,q75,maximum
+1.1.1.27,kcat_km_value,mM^-1_s^-1_as_reported,BRENDA aggregate,34,3.3e-05,2.3125,295.0,1350.0,13000.0
+1.1.1.27,km_value,mM_as_reported,BRENDA aggregate,276,0.0018,0.07325,0.33,2.5,1100.0
+1.1.1.27,ph_optimum,dimensionless,BRENDA aggregate,72,4.5,6.0,7.05,7.8,11.5
+1.1.1.27,temperature_optimum,degree_C,BRENDA aggregate,20,20.0,25.0,39.5,46.25,90.0
+1.1.1.27,turnover_number,s^-1_as_reported,BRENDA aggregate,95,4.5e-05,14.225,98.0,258.35,17479.0
+4.2.1.1,kcat_km_value,mM^-1_s^-1_as_reported,BRENDA aggregate,117,0.00016,5500.0,42000.0,110000.0,7500000.0
+4.2.1.1,km_value,mM_as_reported,BRENDA aggregate,238,0.002409,4.0,9.25,19.0,4700.0
+4.2.1.1,ph_optimum,dimensionless,BRENDA aggregate,45,6.0,7.5,7.9,8.5,9.5
+4.2.1.1,temperature_optimum,degree_C,BRENDA aggregate,41,0.0,22.0,30.0,50.0,95.0
+4.2.1.1,turnover_number,s^-1_as_reported,BRENDA aggregate,284,5e-07,1395.0,24350.0,380000.0,33000000.0

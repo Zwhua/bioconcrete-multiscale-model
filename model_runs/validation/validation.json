@@ -1,0 +1,45 @@
+{
+  "mode": "quick_screen",
+  "all_passed": true,
+  "checks": {
+    "closed_carbon_balance": {
+      "value": 6.063298011819521e-16,
+      "limit": 0.005,
+      "passed": true
+    },
+    "closed_calcium_balance": {
+      "value": 1.539144879923417e-15,
+      "limit": 0.005,
+      "passed": true
+    },
+    "ammonia_free": {
+      "value": 0.0,
+      "limit": 0.0,
+      "passed": true
+    },
+    "nonnegative": {
+      "passed": true
+    },
+    "no_source_no_mineralization": {
+      "value": 0.0,
+      "limit": 1e-10,
+      "passed": true
+    },
+    "time_step_convergence": {
+      "value": 1.206179417037715e-07,
+      "limit": 0.05,
+      "passed": true
+    },
+    "one_dimensional_grid_convergence": {
+      "value": 6.397507523338099e-05,
+      "limit": 0.05,
+      "passed": true
+    },
+    "two_dimensional_grid_convergence": {
+      "value": 1.4226968314785379e-05,
+      "limit": 0.05,
+      "passed": true
+    }
+  },
+  "interpretation": "A quick spatial screen does not replace full-duration experimental validation."
+}

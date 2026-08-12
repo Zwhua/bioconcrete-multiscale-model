@@ -1,0 +1,41 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+.venv/
+venv/
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Source documents and the original prototype are kept locally, not in this model repository
+perform/
+*.pdf
+*.pptx
+建模规划.png
+工作计划.pdf
+部分思路来源&参考文献.pdf
+酶相关数据&模型梳理.pdf
+
+# Raw public databases are large and may have redistribution restrictions
+data/*
+!data/README.md
+!data/processed/
+!data/processed/**
+
+# Keep only curated baseline runs and validation evidence
+model_runs/*
+!model_runs/final/
+!model_runs/final/**
+!model_runs/validation/
+!model_runs/validation/**
+
+# Local calibration inputs and transient outputs
+experiment*.csv
+calibration_data/
+

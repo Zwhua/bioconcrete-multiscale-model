@@ -1,0 +1,28 @@
+{
+  "backend": "analytical carbonate equilibrium",
+  "phreeqc_executable": null,
+  "temperature_c": 30.0,
+  "warning": "The analytical grid is a model prior, not a replacement for pore-solution measurements.",
+  "databases": {
+    "phreeqc": "C:\\Users\\Lenovo\\Desktop\\igem\\data\\phreeqc\\raw\\database\\phreeqc.dat",
+    "concrete": "C:\\Users\\Lenovo\\Desktop\\igem\\data\\phreeqc\\raw\\database\\Concrete_PHR.dat",
+    "cemdata": "C:\\Users\\Lenovo\\Desktop\\igem\\data\\cemdata\\raw\\CEMDATA18-31-03-2022-phaseVol.dat"
+  },
+  "phase_checks": {
+    "phreeqc": {
+      "Calcite": true,
+      "Portlandite": false
+    },
+    "concrete": {
+      "Portlandite": true,
+      "Tobermorite": true,
+      "Jennite": true
+    },
+    "cemdata": {
+      "Cal": true,
+      "Arg": true,
+      "Portlandite": true,
+      "CSH": true
+    }
+  }
+}
