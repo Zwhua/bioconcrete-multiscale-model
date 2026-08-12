@@ -78,6 +78,22 @@ parameter correlations, profile likelihoods, and frozen empirical/mechanistic
 baselines. These artifacts are scientific evidence only when the input table is
 curated public or project data; synthetic rows remain algorithm tests.
 
+## Identifiability and prior uncertainty
+
+`identifiability` builds a measurement-noise-standardized local sensitivity
+matrix and Fisher information matrix. It reports rank, condition number,
+parameter correlations and estimability labels. This is distinct from Morris or
+Sobol importance: an influential parameter can still be confounded and weakly
+estimable. Without observed likelihoods, profile likelihood is reported as not
+executable rather than fabricated.
+
+`prior-predictive` propagates literature/scenario priors to closure, calcite
+mass, permeability, transmissivity, early consumption and time-to-target. It
+separates epistemic parameters from scenario variability, stores seed and
+configuration hash, and supports resume. Until calibration exists, all such
+intervals are labelled `prior_predictive_interval`, not experimental prediction
+intervals.
+
 Public database values are parameter priors. The software does not treat them
 as measurements of the project material. An 80% healing ratio is shown only as
 an evaluation target and is never hard-coded into the equations.

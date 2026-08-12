@@ -21,6 +21,8 @@ from .public_data import fetch_public_data, prepare_public_data
 from .data_pipeline import parameter_registry
 from .design import design_matrix
 from .evidence_report import evidence_report
+from .identifiability import identifiability_analysis
+from .uncertainty import prior_predictive
 
 
 def _root() -> Path:
@@ -93,6 +95,21 @@ def build_parser() -> argparse.ArgumentParser:
     formal.add_argument("--config")
     formal.add_argument("--output", default="model_runs/formal_sensitivity")
     formal.add_argument("--samples", type=int, default=256)
+
+    identifiability = subparsers.add_parser(
+        "identifiability", help="run practical local/Fisher identifiability diagnostics"
+    )
+    identifiability.add_argument("--config")
+    identifiability.add_argument("--output", default="model_runs/identifiability")
+
+    uncertainty = subparsers.add_parser(
+        "prior-predictive", help="propagate parameter priors and scenario variability"
+    )
+    uncertainty.add_argument("--config")
+    uncertainty.add_argument("--output", default="model_runs/prior_predictive")
+    uncertainty.add_argument("--samples", type=int, default=256)
+    uncertainty.add_argument("--seed", type=int, default=2026)
+    uncertainty.add_argument("--resume", action="store_true")
 
     public_cal = subparsers.add_parser("calibrate-public", help="fit public calibration data with specimen holdout")
     public_cal.add_argument("--train", required=True)
@@ -185,6 +202,16 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.command == "formal-sensitivity":
         _, sobol = formal_sensitivity(Path(args.output), _config(args.config), args.samples)
         print(sobol.sort_values("ST", ascending=False).to_string(index=False))
+        return
+    if args.command == "identifiability":
+        result = identifiability_analysis(Path(args.output), _config(args.config))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "prior-predictive":
+        result = prior_predictive(
+            Path(args.output), _config(args.config), args.samples, args.seed, resume=args.resume
+        )
+        print(json.dumps(result, indent=2))
         return
     if args.command == "calibrate-public":
         result = calibrate_public(
