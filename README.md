@@ -3,11 +3,14 @@
   <h1>BioConcrete Multiscale Model</h1>
   <p><strong>自修复混凝土多尺度反应传输、公开数据校准与不确定性分析工程</strong></p>
   <p>
-    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/version-v0.2.0-176b87" alt="Version v0.2.0"></a>
+    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/version-v0.3.0-176b87" alt="Version v0.3.0"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.8%2B-3776ab" alt="Python 3.8+"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f855a" alt="MIT License"></a>
   </p>
 </div>
+
+当前软件版本为 **v0.3.0**。版本号按
+[Semantic Versioning](VERSIONING.md) 维护：兼容修复递增 PATCH，新增兼容功能或科学行为调整递增 MINOR，不兼容接口或数据格式调整递增 MAJOR。每次发布前会同步代码、README、引用信息和 Git 标签。
 
 本项目建立一个从修复材料释放、环境响应、碳酸盐化学和矿物沉积，一直连接到裂缝闭合与材料性能恢复的数学模型。工程提供可复现的 `0D`、`1D` 和真实 `2D` 求解器，以及公开数据处理、参数校准、独立验证、敏感性分析和预注册设计工具。
 
@@ -257,7 +260,7 @@ crack_closure_ratio
 
 ## 数值验证结果
 
-当前共 **33 项自动测试全部通过**。最新快速验收结果：
+当前共 **34 项自动测试全部通过**。最新快速验收结果：
 
 | 检查 | 结果 | 验收阈值 |
 | --- | ---: | ---: |
@@ -355,16 +358,16 @@ python -m pip install -e . --no-build-isolation
 生成最新默认配置，不建议继续使用旧版本配置文件：
 
 ```powershell
-python -m bioconcrete default-config --output config-v0.2.0.json
+python -m bioconcrete default-config --output config-v0.3.0.json
 ```
 
 运行模型与验证：
 
 ```powershell
-python -m bioconcrete simulate --level 0d --config config-v0.2.0.json
-python -m bioconcrete simulate --level 1d --config config-v0.2.0.json
-python -m bioconcrete simulate --level 2d --config config-v0.2.0.json
-python -m bioconcrete validate --config config-v0.2.0.json
+python -m bioconcrete simulate --level 0d --config config-v0.3.0.json
+python -m bioconcrete simulate --level 1d --config config-v0.3.0.json
+python -m bioconcrete simulate --level 2d --config config-v0.3.0.json
+python -m bioconcrete validate --config config-v0.3.0.json
 python -m unittest discover -s tests -v
 ```
 
@@ -442,7 +445,7 @@ WIKI_MODEL.md           iGEM Wiki 风格模型页面
 
 ## 版本、许可与引用
 
-- 当前版本：`v0.2.0`
+- 当前版本：`v0.3.0`
 - 许可证：[MIT](LICENSE)
 - 引用信息：[CITATION.cff](CITATION.cff)
 - 技术说明：[MODELING.md](MODELING.md)
