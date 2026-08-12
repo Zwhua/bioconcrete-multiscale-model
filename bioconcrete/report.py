@@ -16,14 +16,17 @@ import pandas as pd
 
 def _plot_0d(frame: pd.DataFrame, output: Path) -> None:
     fig, left = plt.subplots(figsize=(8, 5))
-    left.plot(frame["time_d"], 100.0 * frame["crack_closure_ratio"], color="#176b87", linewidth=2, label="Closure")
-    left.set(xlabel="Time (d)", ylabel="Crack closure (%)", ylim=(0, 100))
+    closure = 100.0 * frame["crack_closure_ratio"]
+    closure_max = max(float(closure.max()) * 1.18, 0.1)
+    left.plot(frame["time_d"], closure, color="#176b87", linewidth=2.4, label="Closure")
+    left.set(xlabel="Time (d)", ylabel="Crack closure (%)", ylim=(0, closure_max))
     right = left.twinx()
     right.plot(frame["time_d"], 100.0 * frame["transmissivity_ratio"], color="#b44c43", linewidth=2, label="Transmissivity")
     right.set(ylabel="Relative transmissivity (%)", ylim=(0, 105))
     handles = left.get_lines() + right.get_lines()
     left.legend(handles, [line.get_label() for line in handles], loc="center right")
     left.grid(alpha=0.25)
+    left.set_title("0D uncalibrated baseline prediction")
     fig.tight_layout()
     fig.savefig(output, dpi=220)
     plt.close(fig)
@@ -31,10 +34,12 @@ def _plot_0d(frame: pd.DataFrame, output: Path) -> None:
 
 def _plot_1d(frame: pd.DataFrame, output: Path) -> None:
     fig, axis = plt.subplots(figsize=(8, 5))
+    closure_max = max(float(100.0 * frame["crack_closure_ratio"].max()) * 1.18, 0.1)
     for day in sorted(frame["time_d"].unique()):
         selected = frame[frame["time_d"] == day]
         axis.plot(selected["x_mm"], 100.0 * selected["crack_closure_ratio"], linewidth=2, label="{:g} d".format(day))
-    axis.set(xlabel="Position along crack (mm)", ylabel="Local crack closure (%)", ylim=(0, 100))
+    axis.set(xlabel="Position along crack (mm)", ylabel="Local crack closure (%)", ylim=(0, closure_max))
+    axis.set_title("1D uncalibrated baseline prediction")
     axis.legend(ncol=2)
     axis.grid(alpha=0.25)
     fig.tight_layout()
@@ -46,18 +51,21 @@ def _plot_2d(frame: pd.DataFrame, output: Path) -> None:
     final = frame[frame["time_d"] == frame["time_d"].max()]
     pivot = final.pivot(index="y_mm", columns="x_mm", values="crack_closure_ratio")
     fig, axis = plt.subplots(figsize=(9, 3.4))
+    closure_percent = 100.0 * pivot.to_numpy()
+    color_max = max(float(np.nanmax(closure_percent)) * 1.05, 0.01)
     image = axis.imshow(
-        100.0 * pivot.to_numpy(),
+        closure_percent,
         origin="lower",
         aspect="auto",
         extent=[final["x_mm"].min(), final["x_mm"].max(), final["y_mm"].min(), final["y_mm"].max()],
         cmap="viridis",
         vmin=0,
-        vmax=max(10.0, float(100.0 * final["crack_closure_ratio"].max())),
+        vmax=color_max,
     )
     axis.set(xlabel="Position along crack (mm)", ylabel="Crack width (mm)")
     colorbar = fig.colorbar(image, ax=axis)
     colorbar.set_label("Crack closure (%)")
+    axis.set_title("2D uncalibrated baseline prediction at 28 d")
     fig.tight_layout()
     fig.savefig(output, dpi=220)
     plt.close(fig)
