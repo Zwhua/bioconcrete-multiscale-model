@@ -39,7 +39,7 @@ def design_matrix(preregister_path: Path, output_dir: Path,
         trial.kinetics.activity_multiplier = setting["activity_multiplier"]
         trial.kinetics.response_delay_h = setting["response_delay_h"]
         trial.kinetics.basal_leak_fraction = setting["basal_leak_fraction"]
-        trial.kinetics.capsule_calcium_lactate_mol_m3 *= setting["agent_dosage"]
+        trial.kinetics.agent_dosage_multiplier = setting["agent_dosage"]
         trial.simulation.days = 28.0
         trial.simulation.output_interval_days = 1.0
         result = simulate_0d(trial)
@@ -47,7 +47,7 @@ def design_matrix(preregister_path: Path, output_dir: Path,
         closure = frame["crack_closure_ratio"].to_numpy(float)
         reached = frame.loc[closure >= 0.5, "time_d"]
         premature = float(frame.loc[frame["time_d"] <= 1.0, "capsule_calcium_lactate_mol_m3"].iloc[-1])
-        initial_inventory = trial.kinetics.capsule_calcium_lactate_mol_m3
+        initial_inventory = float(frame["capsule_calcium_lactate_mol_m3"].iloc[0])
         rows.append({**setting,
             "closure_28d": result.summary["mean_crack_closure_ratio"],
             "time_to_50pct_d": float(reached.iloc[0]) if len(reached) else np.nan,

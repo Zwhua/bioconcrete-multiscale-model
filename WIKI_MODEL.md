@@ -64,6 +64,12 @@ concentration times cell volume. Comparisons across 0D, 1D and 2D require the
 same physical crack volume; in particular, the 2D out-of-plane thickness must
 match the depth used by 0D/1D.
 
+The v0.4 model candidate also fixes total repair-agent inventory when crack
+geometry changes. One dosage multiplier scales substrate, releasable C-S-H,
+spores and initial active material together. Calcite and C-S-H closure
+contributions are reported separately; C-S-H-only filling is explicitly
+nonbiological model output.
+
 ## Calibration and blind validation
 
 Dataset A is split by specimen, so time points from one specimen cannot cross

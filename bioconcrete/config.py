@@ -40,6 +40,9 @@ class EnvironmentConfig:
 class MicrobialKineticsConfig:
     """Anonymous population-scale activity without construction details."""
 
+    agent_dosage_multiplier: float = 1.0
+    dosage_basis: str = "fixed_total_inventory"
+    reference_inventory_volume_m3: float = 6.0e-7
     capsule_calcium_lactate_mol_m3: float = 8000.0
     capsule_csh_volume_fraction: float = 0.035
     spore_density_rel: float = 1.0
@@ -137,6 +140,12 @@ class ModelConfig:
             raise ValueError("biomass_carbon_fraction must be in [0, 1)")
         if not 0 <= self.kinetics.basal_leak_fraction <= 1:
             raise ValueError("basal_leak_fraction must be in [0, 1]")
+        if self.kinetics.agent_dosage_multiplier < 0:
+            raise ValueError("agent_dosage_multiplier must be nonnegative")
+        if self.kinetics.dosage_basis not in {"fixed_total_inventory", "fixed_concentration"}:
+            raise ValueError("dosage_basis must be fixed_total_inventory or fixed_concentration")
+        if self.kinetics.reference_inventory_volume_m3 <= 0:
+            raise ValueError("reference_inventory_volume_m3 must be positive")
         if self.kinetics.gate_logic not in {"AND", "OR", "static_suitability"}:
             raise ValueError("gate_logic must be AND, OR, or static_suitability")
         if not 0 <= self.chemistry.wall_deposition_fraction <= 1:
@@ -182,6 +191,9 @@ def _load_dataclass(kind: Type[T], values: Mapping[str, Any]) -> T:
 
 
 PARAMETER_PROVENANCE = {
+    "kinetics.agent_dosage_multiplier": (
+        "scenario variable", "dimensionless complete repair-agent dose multiplier", 0.0, 3.0
+    ),
     "kinetics.qmax_lactate_mol_m3_s": ("model prior", "aggregate substrate utilization rate; requires calibration", 5.0e-5, 1.0e-2),
     "kinetics.k_lactate_mol_m3": ("database aggregate", "anonymous summary of public kinetic records", 1.0, 5000.0),
     "kinetics.k_oxygen_mol_m3": ("literature prior", "aerobic Monod half-saturation", 0.005, 0.20),

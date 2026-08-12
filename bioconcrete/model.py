@@ -117,14 +117,29 @@ def _environment_suitability(
     return water_gate * oxygen_gate * ph_gate * temperature_gate
 
 
-def _initial_state(config: ModelConfig, capsule_profile: np.ndarray) -> np.ndarray:
+def _effective_dosage(config: ModelConfig, level: str) -> float:
+    """Return concentration scaling for the configured material-dose basis."""
+
+    dosage = config.kinetics.agent_dosage_multiplier
+    if config.kinetics.dosage_basis == "fixed_total_inventory":
+        dosage *= (
+            config.kinetics.reference_inventory_volume_m3
+            / _total_crack_volume_m3(config, level)
+        )
+    return dosage
+
+
+def _initial_state(
+    config: ModelConfig, capsule_profile: np.ndarray, level: str = "0d"
+) -> np.ndarray:
     n_cells = capsule_profile.size
     state = np.zeros((n_cells, len(STATE_NAMES)), dtype=float)
+    dosage = _effective_dosage(config, level)
     state[:, S["capsule_calcium_lactate_mol_m3"]] = (
-        config.kinetics.capsule_calcium_lactate_mol_m3 * capsule_profile
+        config.kinetics.capsule_calcium_lactate_mol_m3 * dosage * capsule_profile
     )
-    state[:, S["spore_density_rel"]] = config.kinetics.spore_density_rel * capsule_profile
-    state[:, S["active_density_rel"]] = config.kinetics.active_density_rel * capsule_profile
+    state[:, S["spore_density_rel"]] = config.kinetics.spore_density_rel * dosage * capsule_profile
+    state[:, S["active_density_rel"]] = config.kinetics.active_density_rel * dosage * capsule_profile
     state[:, S["oxygen_mol_m3"]] = config.environment.oxygen_initial_mol_m3
     state[:, S["portlandite_mol_m3"]] = config.chemistry.portlandite_mol_m3
     state[:, S["total_alkalinity_mol_m3"]] = config.environment.initial_alkalinity_mol_m3
@@ -407,11 +422,27 @@ def repair_metrics(
         )
     else:
         total_wall_area_m2 = np.broadcast_to(np.asarray(total_wall_area_m2, dtype=float), (n_cells,))
+    calcite_solid_volume_m3 = calcite_volume * cell_volume_m3
+    csh_solid_volume_m3 = csh_volume * cell_volume_m3
     total_solid_volume_m3 = solid_fraction * cell_volume_m3
+    calcite_wall_volume_m3 = calcite_solid_volume_m3 * chem.wall_deposition_fraction
+    csh_wall_volume_m3 = csh_solid_volume_m3 * chem.wall_deposition_fraction
     wall_solid_volume_m3 = total_solid_volume_m3 * chem.wall_deposition_fraction
     nonwall_solid_volume_m3 = total_solid_volume_m3 - wall_solid_volume_m3
     one_wall_thickness_m = wall_solid_volume_m3 / np.maximum(total_wall_area_m2, 1e-30)
     wall_deposition_thickness_mm = one_wall_thickness_m * 1.0e3
+    calcite_closure_contribution = np.clip(
+        2.0 * calcite_wall_volume_m3
+        / np.maximum(total_wall_area_m2, 1e-30)
+        * 1.0e3 / trans.crack_width_mm,
+        0.0, 1.0,
+    )
+    csh_closure_contribution = np.clip(
+        2.0 * csh_wall_volume_m3
+        / np.maximum(total_wall_area_m2, 1e-30)
+        * 1.0e3 / trans.crack_width_mm,
+        0.0, 1.0,
+    )
     crack_closure_ratio = np.clip(
         2.0 * wall_deposition_thickness_mm / trans.crack_width_mm, 0.0, 1.0
     )
@@ -426,9 +457,15 @@ def repair_metrics(
     return {
         "solid_fill_fraction": solid_fraction,
         "total_solid_volume_m3": total_solid_volume_m3,
+        "calcite_solid_volume_m3": calcite_solid_volume_m3,
+        "csh_solid_volume_m3": csh_solid_volume_m3,
         "wall_solid_volume_m3": wall_solid_volume_m3,
+        "calcite_wall_volume_m3": calcite_wall_volume_m3,
+        "csh_wall_volume_m3": csh_wall_volume_m3,
         "nonwall_solid_volume_m3": nonwall_solid_volume_m3,
         "wall_deposition_thickness_mm": wall_deposition_thickness_mm,
+        "calcite_closure_contribution": calcite_closure_contribution,
+        "csh_closure_contribution": csh_closure_contribution,
         "crack_closure_ratio": crack_closure_ratio,
         # Deprecated compatibility alias. New reports use crack_closure_ratio.
         "healing_ratio": crack_closure_ratio,
@@ -474,6 +511,8 @@ def _summary(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, fl
         "mean_crack_closure_ratio": float(np.mean(metrics["crack_closure_ratio"])),
         "max_crack_closure_ratio": float(np.max(metrics["crack_closure_ratio"])),
         "mean_healing_ratio": float(np.mean(metrics["crack_closure_ratio"])),
+        "mean_calcite_closure_contribution": float(np.mean(metrics["calcite_closure_contribution"])),
+        "mean_csh_closure_contribution": float(np.mean(metrics["csh_closure_contribution"])),
         "mean_permeability_ratio": float(np.mean(metrics["permeability_ratio"])),
         "mean_transmissivity_ratio": float(np.mean(metrics["transmissivity_ratio"])),
         "calcite_mol_m3_mean": calcite_mean,
@@ -547,6 +586,13 @@ def _inventory(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, 
     )
     return {
         "capsule_calcium_lactate_mol": float(np.sum(cap * cell_volume)),
+        "spore_inventory_rel_m3": float(np.sum(state[:, S["spore_density_rel"]] * cell_volume)),
+        "active_inventory_rel_m3": float(np.sum(state[:, S["active_density_rel"]] * cell_volume)),
+        "remaining_csh_payload_m3": float(np.sum(
+            cap / max(config.kinetics.capsule_calcium_lactate_mol_m3, 1e-30)
+            * config.kinetics.capsule_csh_volume_fraction * cell_volume
+        )),
+        "released_csh_m3": float(np.sum(state[:, S["csh_volume_fraction"]] * cell_volume)),
         "carbon_mol": float(np.sum(carbon * cell_volume)),
         "calcium_mol": float(np.sum(calcium * cell_volume)),
         "calcite_mol": float(np.sum(state[:, S["calcite_mol_m3"]] * cell_volume)),
@@ -578,7 +624,7 @@ def _diagnostics(
 def simulate_0d(config: Optional[ModelConfig] = None, geochem: Optional[GeochemLookup] = None) -> SimulationResult:
     config = config or ModelConfig()
     config.validate()
-    state = _initial_state(config, np.ones(1))
+    state = _initial_state(config, np.ones(1), "0d")
     initial = state.copy()
     total_s = config.simulation.days * SECONDS_PER_DAY
     output_s = max(config.simulation.output_interval_days * SECONDS_PER_DAY, 1.0)
@@ -753,7 +799,7 @@ def _spatial_simulation(
         profile = profile_2d.ravel()
         shape = profile_2d.shape
         coordinates = {"x_mm": xx.ravel(), "y_mm": yy.ravel()}
-    state = _initial_state(config, profile.ravel())
+    state = _initial_state(config, profile.ravel(), level)
     initial = state.copy()
     frames = [_state_frame(state, 0.0, config, coordinates)]
     total_s = config.simulation.days * SECONDS_PER_DAY

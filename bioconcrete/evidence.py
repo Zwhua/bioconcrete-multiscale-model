@@ -185,7 +185,7 @@ def _predict_outputs(config: ModelConfig, observations: pd.DataFrame) -> pd.Data
         trial = copy.deepcopy(config)
         trial.transport.crack_width_mm = width
         trial.environment.wet_hours_per_day = wet
-        trial.kinetics.capsule_calcium_lactate_mol_m3 *= max(dosage, 0.0)
+        trial.kinetics.agent_dosage_multiplier = max(dosage, 0.0)
         subset = rows.loc[indexes]
         finite_times = subset["time_d"].to_numpy(float)
         days = max(float(np.nanmax(finite_times)) if np.isfinite(finite_times).any() else 0.01, 0.01)

@@ -24,6 +24,9 @@
     "ph_maximum": 13.5
   },
   "kinetics": {
+    "agent_dosage_multiplier": 1.0,
+    "dosage_basis": "fixed_total_inventory",
+    "reference_inventory_volume_m3": 6e-07,
     "capsule_calcium_lactate_mol_m3": 8000.0,
     "capsule_csh_volume_fraction": 0.035,
     "spore_density_rel": 1.0,

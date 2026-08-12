@@ -53,12 +53,12 @@ class ModelTests(unittest.TestCase):
             thick_result.frame["cell_volume_m3"].iloc[-1] / thin_result.frame["cell_volume_m3"].iloc[-1],
             2.0, places=7,
         )
-        self.assertAlmostEqual(
-            thick_result.summary["calcite_mol_m3_mean"], thin_result.summary["calcite_mol_m3_mean"], places=7
-        )
-        self.assertAlmostEqual(
+        thin_calcite = thin_result.diagnostics["final_inventory"]["calcite_mol"]
+        thick_calcite = thick_result.diagnostics["final_inventory"]["calcite_mol"]
+        self.assertAlmostEqual(thick_calcite, thin_calcite, places=12)
+        self.assertLess(
             thick_result.summary["mean_crack_closure_ratio"],
-            thin_result.summary["mean_crack_closure_ratio"], places=7,
+            thin_result.summary["mean_crack_closure_ratio"],
         )
 
     def test_wall_area_controls_deposition_thickness(self):
@@ -89,9 +89,9 @@ class ModelTests(unittest.TestCase):
         _, profile_1d = _capsule_profile_1d(config)
         _, _, profile_2d = _capsule_profile_2d(config)
         states = {
-            "0d": _initial_state(config, np.ones(1)),
-            "1d": _initial_state(config, profile_1d),
-            "2d": _initial_state(config, profile_2d.ravel()),
+            "0d": _initial_state(config, np.ones(1), "0d"),
+            "1d": _initial_state(config, profile_1d, "1d"),
+            "2d": _initial_state(config, profile_2d.ravel(), "2d"),
         }
         inventory = {
             level: _inventory(state, config, level)["capsule_calcium_lactate_mol"]
@@ -108,10 +108,10 @@ class ModelTests(unittest.TestCase):
         _, coarse_profile = _capsule_profile_1d(coarse)
         _, fine_profile = _capsule_profile_1d(fine)
         coarse_inventory = _inventory(
-            _initial_state(coarse, coarse_profile), coarse, "1d"
+            _initial_state(coarse, coarse_profile, "1d"), coarse, "1d"
         )["capsule_calcium_lactate_mol"]
         fine_inventory = _inventory(
-            _initial_state(fine, fine_profile), fine, "1d"
+            _initial_state(fine, fine_profile, "1d"), fine, "1d"
         )["capsule_calcium_lactate_mol"]
         self.assertAlmostEqual(coarse_inventory, fine_inventory, places=12)
 

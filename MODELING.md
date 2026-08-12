@@ -19,6 +19,13 @@ volume-integrated. Capsule count controls source discreteness rather than total
 dose. A numerical 0D/1D/2D comparison is valid only after crack volume,
 boundary conditions and initial inventories have been matched explicitly.
 
+The default dose basis is `fixed_total_inventory`. The public
+`agent_dosage_multiplier` scales calcium lactate, releasable C-S-H, spores and
+initial active units together. Changing crack geometry therefore changes local
+concentration but cannot create repair material. Model outputs separately report
+calcite and C-S-H solid volumes, wall volumes and closure contributions so that
+nonbiological filling is not counted as biological mineralization.
+
 The tracked calcium-lactate pathway is ammonia-free. `ammonium_mol_m3` is kept
 as a diagnostic state and must remain exactly zero.
 
