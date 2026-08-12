@@ -23,6 +23,8 @@ from .design import design_matrix
 from .evidence_report import evidence_report
 from .identifiability import identifiability_analysis
 from .uncertainty import prior_predictive
+from .experiment_design import rank_experiments
+from .model_comparison import compare_structures
 
 
 def _root() -> Path:
@@ -111,6 +113,14 @@ def build_parser() -> argparse.ArgumentParser:
     uncertainty.add_argument("--seed", type=int, default=2026)
     uncertainty.add_argument("--resume", action="store_true")
 
+    structures = subparsers.add_parser("compare-models", help="compare mechanistic and baseline structures")
+    structures.add_argument("--config")
+    structures.add_argument("--output", default="model_runs/model_comparison")
+
+    experiments = subparsers.add_parser("design-experiments", help="rank prospective experiments by D-optimality")
+    experiments.add_argument("--config")
+    experiments.add_argument("--output", default="model_runs/experiment_design")
+
     public_cal = subparsers.add_parser("calibrate-public", help="fit public calibration data with specimen holdout")
     public_cal.add_argument("--train", required=True)
     public_cal.add_argument("--config")
@@ -136,6 +146,8 @@ def build_parser() -> argparse.ArgumentParser:
     design.add_argument("--config")
     design.add_argument("--output", default="model_runs/design_matrix")
     design.add_argument("--limit", type=int)
+    design.add_argument("--workers", type=int, default=1)
+    design.add_argument("--resume", action="store_true")
 
     evidence = subparsers.add_parser("evidence-report", help="report completed and missing evidence components")
     evidence.add_argument("--run", required=True)
@@ -213,6 +225,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         )
         print(json.dumps(result, indent=2))
         return
+    if args.command == "compare-models":
+        result = compare_structures(Path(args.output), _config(args.config))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "design-experiments":
+        result = rank_experiments(Path(args.output), _config(args.config))
+        print(json.dumps(result, indent=2))
+        return
     if args.command == "calibrate-public":
         result = calibrate_public(
             Path(args.train), Path(args.output), _config(args.config), args.bootstrap, args.profile_points
@@ -234,7 +254,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(path.resolve())
         return
     if args.command == "design-matrix":
-        result = design_matrix(Path(args.preregister), Path(args.output), _config(args.config), args.limit)
+        result = design_matrix(
+            Path(args.preregister), Path(args.output), _config(args.config),
+            args.limit, args.workers, args.resume,
+        )
         print(json.dumps(result, indent=2))
         return
     if args.command == "evidence-report":
