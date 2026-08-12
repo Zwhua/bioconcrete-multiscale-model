@@ -34,13 +34,13 @@ exact configuration, a figure, and `REPORT.md`.
 
 ## Public calibration and external validation
 
-The legacy CSV interface remains available. The v0.2 evidence workflow uses the
+The legacy CSV interface remains available. The evidence workflow uses the
 traceable public observation schema documented in `data/public/README.md` and
 keeps project experiments, public calibration, and external validation separate.
 
 ```text
-lactate_mM, cfu_mL, caco3_mg, healing_ratio,
-permeability_ratio, sorptivity
+lactate_mM, calcite_mass_mg, crack_closure_ratio,
+permeability_ratio, ph, activation_state, cumulative_activity_h
 ```
 
 Run calibration with:
@@ -48,6 +48,16 @@ Run calibration with:
 ```powershell
 python -m bioconcrete calibrate --data experiment.csv --bootstrap 20
 ```
+
+Calibration is staged: release/activity observations constrain release and
+effective activity, calcite mass constrains precipitation, and crack closure
+constrains wall deposition. Missing stage-specific observations leave the
+corresponding parameters fixed at their priors. Residuals are divided by an
+audited measurement uncertainty before different physical outputs are combined.
+The run writes per-output metrics, corrected AIC/AICc, bootstrap intervals,
+parameter correlations, profile likelihoods, and frozen empirical/mechanistic
+baselines. These artifacts are scientific evidence only when the input table is
+curated public or project data; synthetic rows remain algorithm tests.
 
 Public database values are parameter priors. The software does not treat them
 as measurements of the project material. An 80% healing ratio is shown only as
