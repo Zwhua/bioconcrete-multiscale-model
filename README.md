@@ -169,7 +169,7 @@ V_s=\frac{n_{cal}M_{cal}}{\rho_{cal}}+V_{csh}
 然后使用 `wall_deposition_fraction` 区分裂缝壁沉积与其他位置填充：
 
 ```math
-\delta=\frac{V_{wall}}{2A_{wall}}
+\delta_{one\ wall}=\frac{V_{wall}}{A_{wall,total}}
 ```
 
 ```math
@@ -257,7 +257,7 @@ crack_closure_ratio
 
 ## 数值验证结果
 
-当前共 **26 项自动测试全部通过**。最新快速验收结果：
+当前共 **29 项自动测试全部通过**。最新快速验收结果：
 
 | 检查 | 结果 | 验收阈值 |
 | --- | ---: | ---: |

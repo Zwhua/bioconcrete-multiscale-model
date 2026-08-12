@@ -368,14 +368,50 @@ def _reaction_step(
     return updated
 
 
-def repair_metrics(state: np.ndarray, config: ModelConfig) -> Dict[str, np.ndarray]:
+def _uniform_cell_geometry(config: ModelConfig, level: str, n_cells: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Return per-cell crack volume and total opposing-wall area."""
+
+    total_volume = _total_crack_volume_m3(config, level)
+    aperture_m = config.transport.crack_width_mm * 1.0e-3
+    cell_volume = np.full(n_cells, total_volume / max(n_cells, 1))
+    total_wall_area = 2.0 * cell_volume / aperture_m
+    return cell_volume, total_wall_area
+
+
+def repair_metrics(
+    state: np.ndarray,
+    config: ModelConfig,
+    cell_volume_m3: Optional[np.ndarray] = None,
+    total_wall_area_m2: Optional[np.ndarray] = None,
+) -> Dict[str, np.ndarray]:
+    """Map solid volume to two-wall deposition and aperture closure.
+
+    ``total_wall_area_m2`` is the sum of both opposing crack-wall areas.
+    ``wall_deposition_thickness_mm`` is the thickness on one wall, so closure
+    uses twice that thickness exactly once.
+    """
+
     chem = config.chemistry
     trans = config.transport
     calcite_volume = state[:, S["calcite_mol_m3"]] * chem.calcite_molar_mass_kg_mol / chem.calcite_density_kg_m3
     csh_volume = state[:, S["csh_volume_fraction"]]
     solid_fraction = np.clip(calcite_volume + csh_volume, 0.0, 1.0)
-    wall_solid_fraction = solid_fraction * chem.wall_deposition_fraction
-    wall_deposition_thickness_mm = 0.5 * trans.crack_width_mm * wall_solid_fraction
+    n_cells = state.shape[0]
+    if cell_volume_m3 is None:
+        cell_volume_m3 = np.full(n_cells, _total_crack_volume_m3(config, "0d"))
+    else:
+        cell_volume_m3 = np.broadcast_to(np.asarray(cell_volume_m3, dtype=float), (n_cells,))
+    if total_wall_area_m2 is None:
+        total_wall_area_m2 = np.full(
+            n_cells, 2.0 * trans.crack_length_mm * trans.crack_depth_mm * 1.0e-6
+        )
+    else:
+        total_wall_area_m2 = np.broadcast_to(np.asarray(total_wall_area_m2, dtype=float), (n_cells,))
+    total_solid_volume_m3 = solid_fraction * cell_volume_m3
+    wall_solid_volume_m3 = total_solid_volume_m3 * chem.wall_deposition_fraction
+    nonwall_solid_volume_m3 = total_solid_volume_m3 - wall_solid_volume_m3
+    one_wall_thickness_m = wall_solid_volume_m3 / np.maximum(total_wall_area_m2, 1e-30)
+    wall_deposition_thickness_mm = one_wall_thickness_m * 1.0e3
     crack_closure_ratio = np.clip(
         2.0 * wall_deposition_thickness_mm / trans.crack_width_mm, 0.0, 1.0
     )
@@ -389,6 +425,9 @@ def repair_metrics(state: np.ndarray, config: ModelConfig) -> Dict[str, np.ndarr
     transmissivity = np.maximum(1.0 - crack_closure_ratio, 0.0) ** 3
     return {
         "solid_fill_fraction": solid_fraction,
+        "total_solid_volume_m3": total_solid_volume_m3,
+        "wall_solid_volume_m3": wall_solid_volume_m3,
+        "nonwall_solid_volume_m3": nonwall_solid_volume_m3,
         "wall_deposition_thickness_mm": wall_deposition_thickness_mm,
         "crack_closure_ratio": crack_closure_ratio,
         # Deprecated compatibility alias. New reports use crack_closure_ratio.
@@ -428,7 +467,8 @@ def _total_crack_volume_m3(config: ModelConfig, level: str) -> float:
 
 
 def _summary(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, float]:
-    metrics = repair_metrics(state, config)
+    cell_volume, wall_area = _uniform_cell_geometry(config, level, state.shape[0])
+    metrics = repair_metrics(state, config, cell_volume, wall_area)
     calcite_mean = float(np.mean(state[:, S["calcite_mol_m3"]]))
     return {
         "mean_crack_closure_ratio": float(np.mean(metrics["crack_closure_ratio"])),
@@ -450,26 +490,19 @@ def _summary(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, fl
 
 def _state_frame(state: np.ndarray, time_d: float, config: ModelConfig, coordinates: Dict[str, np.ndarray]) -> pd.DataFrame:
     values = {name: state[:, index] for index, name in enumerate(STATE_NAMES)}
-    values.update(repair_metrics(state, config))
     values.update(coordinates)
     n_cells = state.shape[0]
     trans = config.transport
     if "y_mm" in coordinates:
-        dx_m = trans.crack_length_mm * 1.0e-3 / max(trans.nx_2d - 1, 1)
-        dy_m = trans.crack_width_mm * 1.0e-3 / max(trans.ny_2d - 1, 1)
-        thickness_m = trans.out_of_plane_thickness_mm * 1.0e-3
-        cell_volume = dx_m * dy_m * thickness_m
-        wall_area = 2.0 * dx_m * thickness_m / trans.ny_2d
+        level = "2d"
     elif "x_mm" in coordinates:
-        dx_m = trans.crack_length_mm * 1.0e-3 / max(trans.nx_1d - 1, 1)
-        depth_m = trans.crack_depth_mm * 1.0e-3
-        cell_volume = dx_m * trans.crack_width_mm * 1.0e-3 * depth_m
-        wall_area = 2.0 * dx_m * depth_m
+        level = "1d"
     else:
-        cell_volume = _total_crack_volume_m3(config, "0d")
-        wall_area = 2.0 * trans.crack_length_mm * trans.crack_depth_mm * 1.0e-6
-    values["cell_volume_m3"] = np.full(n_cells, cell_volume)
-    values["wall_area_m2"] = np.full(n_cells, wall_area)
+        level = "0d"
+    cell_volume, wall_area = _uniform_cell_geometry(config, level, n_cells)
+    values.update(repair_metrics(state, config, cell_volume, wall_area))
+    values["cell_volume_m3"] = cell_volume
+    values["wall_area_m2"] = wall_area
     values["ph"] = _state_ph(state, config)
     effective_gate = config.kinetics.basal_leak_fraction + (
         1.0 - config.kinetics.basal_leak_fraction
@@ -647,7 +680,9 @@ def _transport_step(
     shape: Tuple[int, ...],
 ) -> np.ndarray:
     _, wet_factor = _environment(time_s + 0.5 * dt_s, config)
-    metrics = repair_metrics(state, config)
+    level = "2d" if len(shape) == 2 else "1d"
+    cell_volume, wall_area = _uniform_cell_geometry(config, level, state.shape[0])
+    metrics = repair_metrics(state, config, cell_volume, wall_area)
     obstruction = np.maximum(1.0 - metrics["crack_closure_ratio"], 1e-3) ** config.transport.tortuosity_exponent
     base_diffusivity = {
         "lactate": config.transport.diffusivity_lactate_m2_s,

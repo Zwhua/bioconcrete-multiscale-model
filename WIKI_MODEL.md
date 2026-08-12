@@ -43,9 +43,14 @@ longer equates solid volume fraction with closure. The wall-deposited portion
 gives a thickness
 
 ```text
-delta = wall deposit volume / (2 * wall area)
+delta_one_wall = wall deposit volume / total opposing-wall area
 closure = clip(2 * delta / initial aperture, 0, 1)
 ```
+
+Here `total opposing-wall area` is the sum of both crack faces and `delta` is
+the thickness on one face. The factor of two therefore appears only in the
+closure equation. Wall and non-wall solid volumes are reported separately and
+sum to the total deposited-solid volume.
 
 `healing_ratio` remains only as a deprecated file-format alias.
 

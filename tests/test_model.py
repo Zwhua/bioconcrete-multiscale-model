@@ -5,7 +5,7 @@ import numpy as np
 
 from bioconcrete.chemistry import alkalinity_from_ph, carbonate_fractions, ph_from_alkalinity
 from bioconcrete.config import ModelConfig
-from bioconcrete.model import simulate_0d, simulate_1d, simulate_2d
+from bioconcrete.model import S, STATE_NAMES, repair_metrics, simulate_0d, simulate_1d, simulate_2d
 
 
 class ModelTests(unittest.TestCase):
@@ -56,6 +56,43 @@ class ModelTests(unittest.TestCase):
         self.assertAlmostEqual(
             thick_result.summary["mean_crack_closure_ratio"],
             thin_result.summary["mean_crack_closure_ratio"], places=7,
+        )
+
+    def test_wall_area_controls_deposition_thickness(self):
+        config = self.short_config()
+        state = np.zeros((1, len(STATE_NAMES)))
+        state[0, S["calcite_mol_m3"]] = 100.0
+        small_area = repair_metrics(state, config, np.array([1.0e-9]), np.array([2.0e-6]))
+        large_area = repair_metrics(state, config, np.array([1.0e-9]), np.array([4.0e-6]))
+        self.assertAlmostEqual(
+            small_area["wall_deposition_thickness_mm"][0] /
+            large_area["wall_deposition_thickness_mm"][0],
+            2.0,
+        )
+
+    def test_wall_and_nonwall_solid_volumes_partition_total(self):
+        config = self.short_config()
+        state = np.zeros((1, len(STATE_NAMES)))
+        state[0, S["calcite_mol_m3"]] = 100.0
+        metrics = repair_metrics(state, config, np.array([1.0e-9]), np.array([2.0e-6]))
+        np.testing.assert_allclose(
+            metrics["wall_solid_volume_m3"] + metrics["nonwall_solid_volume_m3"],
+            metrics["total_solid_volume_m3"],
+        )
+
+    def test_same_solid_volume_closes_narrower_crack_more(self):
+        narrow = self.short_config()
+        wide = copy.deepcopy(narrow)
+        wide.transport.crack_width_mm = 2.0 * narrow.transport.crack_width_mm
+        state = np.zeros((1, len(STATE_NAMES)))
+        state[0, S["calcite_mol_m3"]] = 100.0
+        volume = np.array([1.0e-9])
+        wall_area = np.array([2.0e-6])
+        narrow_metrics = repair_metrics(state, narrow, volume, wall_area)
+        wide_metrics = repair_metrics(state, wide, volume, wall_area)
+        self.assertGreater(
+            narrow_metrics["crack_closure_ratio"][0],
+            wide_metrics["crack_closure_ratio"][0],
         )
 
     def test_closed_zero_dimensional_balance_and_ammonia_invariant(self):
