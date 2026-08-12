@@ -17,6 +17,13 @@ biological design information or construction details are stored or inferred.
 The tracked calcium-lactate pathway is ammonia-free. `ammonium_mol_m3` is kept
 as a diagnostic state and must remain exactly zero.
 
+The environmental activation module is an anonymous phenomenological
+surrogate. Its default `gate_logic` is `AND`: water suitability, oxygen-rise,
+pH-drop, sustained signal duration and response delay are all represented.
+`OR` and `static_suitability` exist for ablation analysis only. Outputs include
+true/false activation indices, cumulative activity, activation delay and
+premature resource consumption; none imply a validated biological circuit.
+
 ## Quick start
 
 ```powershell

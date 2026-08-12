@@ -26,7 +26,12 @@ underlying implementation.
 
 Water activity, oxygen and pH drive an environment signal. The model tracks
 signal duration, response delay, activation state, memory and cumulative
-resource consumption. Dynamic pH is solved from dissolved inorganic carbon and
+resource consumption. The default `AND` mode requires water suitability,
+oxygen-rise and pH-drop gates simultaneously; `OR` and `static_suitability` are
+retained only as explicit ablation modes. `true_activation_index` and
+`false_activation_index` are both evaluated against the same strict AND
+reference. The module is a phenomenological activation surrogate, not a
+validated model of a particular biological circuit. Dynamic pH is solved from dissolved inorganic carbon and
 total alkalinity after every accepted reaction step. Fixed pH remains an
 explicit comparison mode.
 

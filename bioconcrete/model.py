@@ -39,6 +39,8 @@ STATE_NAMES = (
     "tracked_oxygen_mol_m3",
     "tracked_ph",
     "cumulative_activity_h",
+    "premature_consumption_mol_m3",
+    "activation_delay_h",
 )
 S = {name: index for index, name in enumerate(STATE_NAMES)}
 DISSOLVED = {
@@ -175,13 +177,22 @@ def _reaction_rhs(
     tracking_tau_s = max(k.signal_relaxation_h * 3600.0, 1.0)
     oxygen_rise_h = (oxygen - tracked_oxygen) / tracking_tau_s * 3600.0
     ph_drop_h = (tracked_ph - ph) / tracking_tau_s * 3600.0
-    change_gate = np.maximum(
-        _sigmoid(80.0 * (oxygen_rise_h - k.oxygen_rise_threshold_mol_m3_h)),
-        _sigmoid(8.0 * (ph_drop_h - k.ph_drop_threshold_h)),
+    oxygen_change_gate = _sigmoid(
+        80.0 * (oxygen_rise_h - k.oxygen_rise_threshold_mol_m3_h)
     )
+    ph_change_gate = _sigmoid(8.0 * (ph_drop_h - k.ph_drop_threshold_h))
     suitability = _environment_suitability(aw, oxygen, ph, config)
-    signal_target = suitability * change_gate
-    memory_target = (memory_h >= k.activation_duration_h).astype(float)
+    if k.gate_logic == "AND":
+        signal_target = suitability * oxygen_change_gate * ph_change_gate
+    elif k.gate_logic == "OR":
+        change_gate = 1.0 - (1.0 - oxygen_change_gate) * (1.0 - ph_change_gate)
+        signal_target = suitability * change_gate
+    else:
+        signal_target = suitability
+    duration_scale_h = max(k.activation_duration_h, 1.0e-6)
+    memory_target = _sigmoid(
+        8.0 * (memory_h - k.activation_duration_h) / duration_scale_h
+    )
     response_tau_s = max(k.response_delay_h * 3600.0, 1.0)
     effective_gate = k.basal_leak_fraction + (1.0 - k.basal_leak_fraction) * np.clip(activation, 0.0, 1.0)
     release_gate = _sigmoid(np.full(n_cells, 80.0 * (aw - k.aw_threshold)))
@@ -277,6 +288,10 @@ def _reaction_rhs(
     dy[:, S["tracked_oxygen_mol_m3"]] = (oxygen - tracked_oxygen) / tracking_tau_s
     dy[:, S["tracked_ph"]] = (ph - tracked_ph) / tracking_tau_s
     dy[:, S["cumulative_activity_h"]] = effective_gate / 3600.0
+    dy[:, S["premature_consumption_mol_m3"]] = uptake * (1.0 - signal_target)
+    dy[:, S["activation_delay_h"]] = (
+        ((signal_target >= 0.5) & (activation < 0.5)).astype(float) / 3600.0
+    )
     return dy.ravel()
 
 
@@ -459,9 +474,26 @@ def _state_frame(state: np.ndarray, time_d: float, config: ModelConfig, coordina
     effective_gate = config.kinetics.basal_leak_fraction + (
         1.0 - config.kinetics.basal_leak_fraction
     ) * state[:, S["activation_state"]]
-    signal = state[:, S["environment_signal"]]
-    values["true_activation_index"] = effective_gate * signal
-    values["false_activation_index"] = effective_gate * (1.0 - signal)
+    oxygen = state[:, S["oxygen_mol_m3"]]
+    ph = values["ph"]
+    tracking_tau_s = max(config.kinetics.signal_relaxation_h * 3600.0, 1.0)
+    oxygen_rise_h = (
+        oxygen - state[:, S["tracked_oxygen_mol_m3"]]
+    ) / tracking_tau_s * 3600.0
+    ph_drop_h = (
+        state[:, S["tracked_ph"]] - ph
+    ) / tracking_tau_s * 3600.0
+    strict_reference = (
+        _environment_suitability(
+            config.environment.water_activity_wet if _is_wet(time_d * SECONDS_PER_DAY, config)
+            else config.environment.water_activity_dry,
+            oxygen, ph, config,
+        )
+        * _sigmoid(80.0 * (oxygen_rise_h - config.kinetics.oxygen_rise_threshold_mol_m3_h))
+        * _sigmoid(8.0 * (ph_drop_h - config.kinetics.ph_drop_threshold_h))
+    )
+    values["true_activation_index"] = effective_gate * strict_reference
+    values["false_activation_index"] = effective_gate * (1.0 - strict_reference)
     values["time_d"] = np.full(state.shape[0], time_d)
     return pd.DataFrame(values)
 

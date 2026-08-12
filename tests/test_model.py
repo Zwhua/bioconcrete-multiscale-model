@@ -100,6 +100,79 @@ class ModelTests(unittest.TestCase):
             immediate_result.frame["activation_state"].iloc[-1] + 1e-9,
         )
         self.assertGreaterEqual(delayed_result.frame["false_activation_index"].iloc[0], 0.0)
+        self.assertIn("premature_consumption_mol_m3", delayed_result.frame)
+        self.assertIn("activation_delay_h", delayed_result.frame)
+
+    def test_and_gate_requires_each_dynamic_signal(self):
+        config = self.short_config()
+        config.simulation.days = 0.2
+        config.kinetics.gate_logic = "AND"
+        config.kinetics.oxygen_rise_threshold_mol_m3_h = 1.0e6
+        blocked_oxygen = simulate_0d(config)
+        self.assertLess(blocked_oxygen.frame["environment_signal"].max(), 0.5)
+
+        config = self.short_config()
+        config.simulation.days = 0.2
+        config.kinetics.gate_logic = "AND"
+        config.kinetics.ph_drop_threshold_h = 1.0e6
+        blocked_ph = simulate_0d(config)
+        self.assertLess(blocked_ph.frame["environment_signal"].max(), 0.5)
+
+    def test_and_gate_has_less_false_activation_than_or_gate(self):
+        and_config = self.short_config()
+        and_config.simulation.days = 0.2
+        and_config.kinetics.gate_logic = "AND"
+        or_config = copy.deepcopy(and_config)
+        or_config.kinetics.gate_logic = "OR"
+        and_result = simulate_0d(and_config)
+        or_result = simulate_0d(or_config)
+        self.assertLessEqual(
+            and_result.frame["false_activation_index"].iloc[-1],
+            or_result.frame["false_activation_index"].iloc[-1] + 1e-9,
+        )
+
+    def test_dry_condition_does_not_fully_activate_and_gate(self):
+        config = self.short_config()
+        config.environment.exposure = "dry"
+        config.kinetics.gate_logic = "AND"
+        result = simulate_0d(config)
+        self.assertLess(result.frame["activation_state"].max(), 0.5)
+
+    def test_and_gate_activates_after_duration_and_response_delay(self):
+        config = self.short_config()
+        config.simulation.days = 0.2
+        config.environment.exposure = "continuous"
+        config.kinetics.gate_logic = "AND"
+        config.kinetics.oxygen_rise_threshold_mol_m3_h = -1.0
+        config.kinetics.ph_drop_threshold_h = -1.0
+        config.kinetics.ph_width = 100.0
+        config.kinetics.oxygen_threshold_mol_m3 = 0.0
+        config.kinetics.activation_duration_h = 0.01
+        config.kinetics.response_delay_h = 0.01
+        result = simulate_0d(config)
+        self.assertGreater(result.frame["activation_state"].max(), 0.5)
+        self.assertGreater(result.frame["activation_delay_h"].iloc[-1], 0.0)
+
+    def test_basal_leak_increases_premature_consumption(self):
+        low = self.short_config()
+        low.simulation.days = 0.2
+        low.kinetics.gate_logic = "AND"
+        low.kinetics.basal_leak_fraction = 0.0
+        low.kinetics.oxygen_rise_threshold_mol_m3_h = 1.0e6
+        high = copy.deepcopy(low)
+        high.kinetics.basal_leak_fraction = 0.1
+        low_result = simulate_0d(low)
+        high_result = simulate_0d(high)
+        self.assertGreater(
+            high_result.frame["premature_consumption_mol_m3"].iloc[-1],
+            low_result.frame["premature_consumption_mol_m3"].iloc[-1],
+        )
+
+    def test_gate_logic_configuration_is_validated(self):
+        config = self.short_config()
+        config.kinetics.gate_logic = "XOR"
+        with self.assertRaises(ValueError):
+            config.validate()
 
     def test_precipitation_off_has_zero_closure_without_csh_fill(self):
         config = self.short_config()

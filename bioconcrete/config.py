@@ -72,6 +72,7 @@ class MicrobialKineticsConfig:
     signal_relaxation_h: float = 1.0
     oxygen_rise_threshold_mol_m3_h: float = 0.005
     ph_drop_threshold_h: float = 0.05
+    gate_logic: str = "AND"
 
 
 @dataclass
@@ -136,6 +137,8 @@ class ModelConfig:
             raise ValueError("biomass_carbon_fraction must be in [0, 1)")
         if not 0 <= self.kinetics.basal_leak_fraction <= 1:
             raise ValueError("basal_leak_fraction must be in [0, 1]")
+        if self.kinetics.gate_logic not in {"AND", "OR", "static_suitability"}:
+            raise ValueError("gate_logic must be AND, OR, or static_suitability")
         if not 0 <= self.chemistry.wall_deposition_fraction <= 1:
             raise ValueError("wall_deposition_fraction must be in [0, 1]")
         if min(self.transport.nx_1d, self.transport.nx_2d, self.transport.ny_2d) < 3:

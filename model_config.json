@@ -55,7 +55,8 @@
     "activation_duration_h": 4.0,
     "signal_relaxation_h": 1.0,
     "oxygen_rise_threshold_mol_m3_h": 0.005,
-    "ph_drop_threshold_h": 0.05
+    "ph_drop_threshold_h": 0.05,
+    "gate_logic": "AND"
   },
   "chemistry": {
     "portlandite_mol_m3": 5000.0,
