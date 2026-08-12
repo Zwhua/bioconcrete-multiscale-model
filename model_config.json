@@ -4,6 +4,7 @@
     "output_interval_days": 1.0,
     "reaction_step_h": 12.0,
     "carbonate_mode": "equilibrium",
+    "ph_mode": "dynamic",
     "closed_system": false,
     "random_seed": 2026
   },
@@ -17,7 +18,10 @@
     "temperature_c": 30.0,
     "exposure": "intermittent",
     "wet_hours_per_day": 12.0,
-    "oxygen_transfer_s": 2e-06
+    "oxygen_transfer_s": 2e-06,
+    "initial_alkalinity_mol_m3": 35.0,
+    "ph_minimum": 6.0,
+    "ph_maximum": 13.5
   },
   "kinetics": {
     "capsule_calcium_lactate_mol_m3": 8000.0,
@@ -32,6 +36,10 @@
     "alkaline_decay_s": 4e-07,
     "encapsulation_decay_m3_mol": 1e-05,
     "qmax_lactate_mol_m3_s": 0.0025,
+    "effective_kcat_s": 0.0025,
+    "effective_km_mol_m3": 350.0,
+    "active_unit_concentration": 1.0,
+    "activity_multiplier": 1.0,
     "k_lactate_mol_m3": 350.0,
     "k_oxygen_mol_m3": 0.035,
     "biomass_carbon_fraction": 0.08,
@@ -41,7 +49,13 @@
     "ph_optimum": 10.5,
     "ph_width": 2.0,
     "temperature_optimum_c": 30.0,
-    "temperature_width_c": 12.0
+    "temperature_width_c": 12.0,
+    "response_delay_h": 4.0,
+    "basal_leak_fraction": 0.01,
+    "activation_duration_h": 4.0,
+    "signal_relaxation_h": 1.0,
+    "oxygen_rise_threshold_mol_m3_h": 0.005,
+    "ph_drop_threshold_h": 0.05
   },
   "chemistry": {
     "portlandite_mol_m3": 5000.0,
@@ -56,11 +70,14 @@
     "equilibrium_relaxation_s": 0.02,
     "calcite_molar_mass_kg_mol": 0.1000869,
     "calcite_density_kg_m3": 2710.0,
-    "csh_density_kg_m3": 2400.0
+    "csh_density_kg_m3": 2400.0,
+    "wall_deposition_fraction": 0.75
   },
   "transport": {
     "crack_length_mm": 100.0,
     "crack_width_mm": 0.3,
+    "crack_depth_mm": 20.0,
+    "out_of_plane_thickness_mm": 1.0,
     "nx_1d": 51,
     "nx_2d": 15,
     "ny_2d": 5,
