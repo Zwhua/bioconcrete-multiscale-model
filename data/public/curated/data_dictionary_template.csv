@@ -1,0 +1,2 @@
+dataset_id,normalized_column,original_column,original_unit,normalized_unit,conversion_formula,source_file,sheet,source_row_table_or_figure,doi,interpretation,inclusion_status,exclusion_reason,reviewer_status
+example_only,current_crack_width_mm,Crack width,um,mm,value / 1000,example.xlsx,Sheet1,row 12,example DOI,Current width after conditioning,exclude,template row only,not_reviewed

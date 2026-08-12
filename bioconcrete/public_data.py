@@ -23,7 +23,7 @@ OBSERVATION_COLUMNS = [
     "wet_hours_per_day", "agent_dosage", "lactate_mM", "calcite_mass_mg",
     "crack_closure_ratio", "permeability_ratio", "stiffness_ratio", "ph",
     "activation_state", "cumulative_activity_h", "measurement_sd",
-    "source_file", "source_location",
+    "source_file", "source_location", "curation_status",
 ]
 
 
@@ -163,7 +163,7 @@ def _spreadsheet_rows(path: Path, dataset_id: str) -> List[Dict[str, object]]:
 
 
 def prepare_public_data(dataset_id: str, root: Path) -> Dict[str, object]:
-    """Normalize available tabular files while retaining exact source locations."""
+    """Discover candidate rows; this output is never calibration-ready."""
 
     raw_dir = root / "raw" / dataset_id
     if not raw_dir.exists():
@@ -195,6 +195,7 @@ def prepare_public_data(dataset_id: str, root: Path) -> Dict[str, object]:
         rows.extend(_spreadsheet_rows(path, dataset_id))
     frame = pd.DataFrame(rows, columns=OBSERVATION_COLUMNS)
     if not frame.empty:
+        frame["curation_status"] = "candidate_only"
         mapping = grouped_split(frame["specimen_id"].astype(str))
         frame["split"] = frame["specimen_id"].astype(str).map(mapping)
         if dataset_id == "marine_external":
@@ -210,7 +211,8 @@ def prepare_public_data(dataset_id: str, root: Path) -> Dict[str, object]:
         "local_files_audited": int(len(local_files)),
         "local_receipt": str(receipt_dir / "{}_local.json".format(dataset_id)),
         "output": str(output),
-        "warning": "Generic extraction retains only unambiguous fields; review source_location before calibration.",
+        "calibration_ready": False,
+        "warning": "Candidate discovery only. Manual source review and an approved data dictionary are required before calibration.",
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary

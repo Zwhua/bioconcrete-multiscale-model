@@ -1,0 +1,9 @@
+dataset_id,dimension,public_system,project_target,classification,rationale
+transet_18clsu02,organism,publisher-described encapsulated system,anonymous project activity interface,recalibration_required,Population kinetics are not directly transferable
+transet_18clsu02,substrate,publisher-described substrate,calcium-lactate model,scenario_only,Only shared release-mineral-material responses may transfer
+transet_18clsu02,encapsulation,publisher-described encapsulation,project capsule abstraction,recalibration_required,Release behavior depends on encapsulation
+transet_18clsu02,crack_range,publisher-reported range,0.1-0.5 mm,transferable,Use only overlapping measured widths
+transet_18clsu02,conditioning,hot subtropical protocol,intermittent wetting,recalibration_required,Map only documented wet hours and temperature
+marine_external,conditioning,marine exposure,intermittent project exposure,scenario_only,Salinity and marine chemistry shift applicability
+marine_external,endpoint,microscopy and mass/durability,closure and material proxies,transferable,Validation only for directly corresponding endpoints
+krkcmd,endpoint,crack-width labels,crack-width measurement error,transferable,Used only for measurement uncertainty

@@ -34,6 +34,7 @@ class EvidenceTests(unittest.TestCase):
             frame = pd.read_csv(root / "derived" / "empty" / "observations.csv")
             self.assertEqual(list(frame.columns), OBSERVATION_COLUMNS)
             self.assertEqual(summary["rows"], 0)
+            self.assertFalse(summary["calibration_ready"])
 
     def test_frozen_configuration_digest_detects_changes(self):
         config = ModelConfig()
@@ -186,6 +187,19 @@ class EvidenceTests(unittest.TestCase):
                 prior.chemistry.calcite_rate_mol_m3_s,
             )
             self.assertEqual(result["fitted_parameters"], ["chemistry.wall_deposition_fraction"])
+
+    def test_candidate_extraction_is_rejected_as_calibration_evidence(self):
+        frame = pd.DataFrame({
+            "dataset_id": ["public_A"], "specimen_id": ["A"],
+            "split": ["train"], "time_d": [7.0],
+            "crack_closure_ratio": [0.2], "curation_status": ["candidate_only"],
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data_path = root / "candidate.csv"
+            frame.to_csv(data_path, index=False)
+            with self.assertRaisesRegex(ValueError, "Candidate extraction"):
+                calibrate_public(data_path, root / "run", bootstrap_samples=0)
 
 
 if __name__ == "__main__":

@@ -614,6 +614,12 @@ def calibrate_public(
     """Calibrate supported outputs in stages and freeze the resulting config."""
 
     frame = pd.read_csv(data_path)
+    if "curation_status" in frame:
+        status = frame["curation_status"].fillna("").astype(str)
+        if (status == "candidate_only").any():
+            raise ValueError(
+                "Candidate extraction is not calibration evidence; complete manual curation first"
+            )
     required = {"dataset_id", "specimen_id", "split", "time_d"}
     if not required.issubset(frame.columns):
         raise ValueError("Public observation table is missing required columns: {}".format(sorted(required - set(frame))))
