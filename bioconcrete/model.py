@@ -13,7 +13,7 @@ from scipy import sparse
 from scipy.integrate import solve_ivp
 from scipy.sparse.linalg import spsolve
 
-from .chemistry import GeochemLookup, carbonate_fractions
+from .chemistry import GeochemLookup, carbonate_fractions, ph_from_alkalinity
 from .config import ModelConfig
 
 
@@ -32,6 +32,13 @@ STATE_NAMES = (
     "csh_volume_fraction",
     "biomass_carbon_mol_m3",
     "ammonium_mol_m3",
+    "total_alkalinity_mol_m3",
+    "environment_signal",
+    "activation_state",
+    "activation_memory_h",
+    "tracked_oxygen_mol_m3",
+    "tracked_ph",
+    "cumulative_activity_h",
 )
 S = {name: index for index, name in enumerate(STATE_NAMES)}
 DISSOLVED = {
@@ -79,12 +86,29 @@ def _environment(time_s: float, config: ModelConfig) -> Tuple[float, float]:
     return aw, 1.0 if wet else config.transport.dry_diffusivity_factor
 
 
-def _activity_gate(aw: float, oxygen: np.ndarray, config: ModelConfig) -> np.ndarray:
+def _state_ph(state: np.ndarray, config: ModelConfig) -> np.ndarray:
+    """Return fixed or charge-balanced pH for each reaction cell."""
+
+    if config.simulation.ph_mode == "fixed":
+        return np.full(state.shape[0], config.environment.ph, dtype=float)
+    return ph_from_alkalinity(
+        state[:, S["inorganic_carbon_mol_m3"]],
+        state[:, S["total_alkalinity_mol_m3"]],
+        config.environment.temperature_c,
+        config.environment.ph_minimum,
+        config.environment.ph_maximum,
+        strict=False,
+    )
+
+
+def _environment_suitability(
+    aw: float, oxygen: np.ndarray, ph: np.ndarray, config: ModelConfig
+) -> np.ndarray:
     k = config.kinetics
     env = config.environment
     water_gate = _sigmoid(80.0 * (aw - k.aw_threshold))
     oxygen_gate = _sigmoid(35.0 * (oxygen - k.oxygen_threshold_mol_m3))
-    ph_gate = np.exp(-0.5 * ((env.ph - k.ph_optimum) / max(k.ph_width, 1e-6)) ** 2)
+    ph_gate = np.exp(-0.5 * ((ph - k.ph_optimum) / max(k.ph_width, 1e-6)) ** 2)
     temperature_gate = np.exp(
         -0.5 * ((env.temperature_c - k.temperature_optimum_c) / max(k.temperature_width_c, 1e-6)) ** 2
     )
@@ -101,6 +125,9 @@ def _initial_state(config: ModelConfig, capsule_profile: np.ndarray) -> np.ndarr
     state[:, S["active_density_rel"]] = config.kinetics.active_density_rel * capsule_profile
     state[:, S["oxygen_mol_m3"]] = config.environment.oxygen_initial_mol_m3
     state[:, S["portlandite_mol_m3"]] = config.chemistry.portlandite_mol_m3
+    state[:, S["total_alkalinity_mol_m3"]] = config.environment.initial_alkalinity_mol_m3
+    state[:, S["tracked_oxygen_mol_m3"]] = 0.0
+    state[:, S["tracked_ph"]] = min(config.environment.ph_maximum, config.environment.ph + 0.5)
     return state
 
 
@@ -131,22 +158,45 @@ def _reaction_rhs(
     oxygen = y[:, S["oxygen_mol_m3"]]
     calcium = y[:, S["calcium_mol_m3"]]
     carbon = y[:, S["inorganic_carbon_mol_m3"]]
-    _, alpha_hco3, alpha_co3 = carbonate_fractions(np.array([env.ph]), env.temperature_c)
-    hydrated_target_fraction = float(alpha_hco3[0] + alpha_co3[0])
+    ph = _state_ph(y, config)
+    _, alpha_hco3, alpha_co3 = carbonate_fractions(ph, env.temperature_c)
+    hydrated_target_fraction = alpha_hco3 + alpha_co3
     if config.simulation.carbonate_mode == "equilibrium":
         hydrated = hydrated_target_fraction * carbon
     else:
         hydrated = np.minimum(y[:, S["hydrated_carbon_mol_m3"]], carbon)
     portlandite = y[:, S["portlandite_mol_m3"]]
 
-    gate = _activity_gate(aw, oxygen, config)
+    signal = y[:, S["environment_signal"]]
+    activation = y[:, S["activation_state"]]
+    memory_h = y[:, S["activation_memory_h"]]
+    tracked_oxygen = y[:, S["tracked_oxygen_mol_m3"]]
+    tracked_ph = y[:, S["tracked_ph"]]
+    tracking_tau_s = max(k.signal_relaxation_h * 3600.0, 1.0)
+    oxygen_rise_h = (oxygen - tracked_oxygen) / tracking_tau_s * 3600.0
+    ph_drop_h = (tracked_ph - ph) / tracking_tau_s * 3600.0
+    change_gate = np.maximum(
+        _sigmoid(80.0 * (oxygen_rise_h - k.oxygen_rise_threshold_mol_m3_h)),
+        _sigmoid(8.0 * (ph_drop_h - k.ph_drop_threshold_h)),
+    )
+    suitability = _environment_suitability(aw, oxygen, ph, config)
+    signal_target = suitability * change_gate
+    memory_target = (memory_h >= k.activation_duration_h).astype(float)
+    response_tau_s = max(k.response_delay_h * 3600.0, 1.0)
+    effective_gate = k.basal_leak_fraction + (1.0 - k.basal_leak_fraction) * np.clip(activation, 0.0, 1.0)
     release_gate = _sigmoid(np.full(n_cells, 80.0 * (aw - k.aw_threshold)))
     release = k.capsule_release_s * release_gate * capsule
-    germination = k.germination_s * gate * spores
+    germination = k.germination_s * effective_gate * spores
 
-    monod_l = lactate / (k.k_lactate_mol_m3 + lactate + 1e-30)
+    monod_l = lactate / (k.effective_km_mol_m3 + lactate + 1e-30)
     monod_o = oxygen / (k.k_oxygen_mol_m3 + oxygen + 1e-30)
-    uptake = k.qmax_lactate_mol_m3_s * active * monod_l * monod_o * gate
+    effective_activity = (
+        k.effective_kcat_s
+        * k.active_unit_concentration
+        * k.activity_multiplier
+        * active
+    )
+    uptake = effective_activity * monod_l * monod_o * effective_gate
     carbon_fraction = k.biomass_carbon_fraction
     aerobic_fraction = max(1.0 - carbon_fraction, 1e-9)
     uptake = np.minimum(uptake, lactate / 300.0)
@@ -159,10 +209,10 @@ def _reaction_rhs(
         hydration = chem.ca_hydration_s * np.maximum(hydrated_target_fraction * carbon - hydrated, 0.0)
         dehydration = chem.ca_dehydration_s * np.maximum(hydrated - hydrated_target_fraction * carbon, 0.0)
 
-    carbonate_available = hydrated * float(alpha_co3[0] / max(hydrated_target_fraction, 1e-30))
+    carbonate_available = hydrated * alpha_co3 / np.maximum(hydrated_target_fraction, 1e-30)
     lookup = geochem or GeochemLookup()
     omega = np.clip(
-        np.nan_to_num(lookup.saturation(calcium, carbon, env.ph, chem, env.temperature_c), nan=0.0),
+        np.nan_to_num(lookup.saturation(calcium, carbon, ph, chem, env.temperature_c), nan=0.0),
         0.0,
         1e12,
     )
@@ -182,10 +232,10 @@ def _reaction_rhs(
     )
     ch_dissolution = np.minimum(ch_dissolution, portlandite / 300.0)
 
-    alkaline_excess = max(env.ph - 12.0, 0.0)
+    alkaline_excess = np.maximum(ph - 12.0, 0.0)
     decay_rate = k.decay_s + k.alkaline_decay_s * alkaline_excess
     encapsulation_decay = k.encapsulation_decay_m3_mol * precipitation * active
-    growth = k.maximum_growth_s * monod_l * monod_o * gate * active + k.biomass_yield_rel_m3_mol * uptake
+    growth = k.maximum_growth_s * monod_l * monod_o * effective_gate * active + k.biomass_yield_rel_m3_mol * uptake
 
     dy[:, S["capsule_calcium_lactate_mol_m3"]] = -release
     dy[:, S["spore_density_rel"]] = -germination - decay_rate * spores
@@ -215,6 +265,18 @@ def _reaction_rhs(
     dy[:, S["biomass_carbon_mol_m3"]] = 3.0 * carbon_fraction * uptake
     # The selected pathway is ammonia-free. This state is retained as an invariant diagnostic.
     dy[:, S["ammonium_mol_m3"]] = 0.0
+    if config.simulation.ph_mode == "dynamic":
+        # Portlandite dissolution contributes two charge equivalents; calcite
+        # precipitation consumes two. This is the model's conserved alkalinity state.
+        dy[:, S["total_alkalinity_mol_m3"]] = 2.0 * ch_dissolution - 2.0 * precipitation
+    dy[:, S["environment_signal"]] = (signal_target - signal) / tracking_tau_s
+    accumulating = np.clip(signal, 0.0, 1.0) / 3600.0
+    relaxing = np.maximum(memory_h, 0.0) / max(k.activation_duration_h * 3600.0, 1.0)
+    dy[:, S["activation_memory_h"]] = np.where(signal >= 0.5, accumulating, -relaxing)
+    dy[:, S["activation_state"]] = (memory_target - activation) / response_tau_s
+    dy[:, S["tracked_oxygen_mol_m3"]] = (oxygen - tracked_oxygen) / tracking_tau_s
+    dy[:, S["tracked_ph"]] = (ph - tracked_ph) / tracking_tau_s
+    dy[:, S["cumulative_activity_h"]] = effective_gate / 3600.0
     return dy.ravel()
 
 
@@ -264,10 +326,11 @@ def _reaction_step(
                 raise RuntimeError("Reaction solve failed in cell {}: {}".format(cell, local.message))
             updated[cell] = np.maximum(local.y[:, -1], 0.0)
     if config.simulation.carbonate_mode == "equilibrium":
+        ph = _state_ph(updated, config)
         _, alpha_hco3, alpha_co3 = carbonate_fractions(
-            np.array([config.environment.ph]), config.environment.temperature_c
+            ph, config.environment.temperature_c
         )
-        updated[:, S["hydrated_carbon_mol_m3"]] = float(alpha_hco3[0] + alpha_co3[0]) * updated[
+        updated[:, S["hydrated_carbon_mol_m3"]] = (alpha_hco3 + alpha_co3) * updated[
             :, S["inorganic_carbon_mol_m3"]
         ]
     else:
@@ -275,6 +338,18 @@ def _reaction_step(
             updated[:, S["hydrated_carbon_mol_m3"]], updated[:, S["inorganic_carbon_mol_m3"]]
         )
     updated[:, S["ammonium_mol_m3"]] = 0.0
+    updated[:, S["environment_signal"]] = np.clip(updated[:, S["environment_signal"]], 0.0, 1.0)
+    updated[:, S["activation_state"]] = np.clip(updated[:, S["activation_state"]], 0.0, 1.0)
+    if config.simulation.ph_mode == "dynamic":
+        # Accepted steps must satisfy the configured charge-balance interval.
+        ph_from_alkalinity(
+            updated[:, S["inorganic_carbon_mol_m3"]],
+            updated[:, S["total_alkalinity_mol_m3"]],
+            config.environment.temperature_c,
+            config.environment.ph_minimum,
+            config.environment.ph_maximum,
+            strict=True,
+        )
     return updated
 
 
@@ -284,18 +359,25 @@ def repair_metrics(state: np.ndarray, config: ModelConfig) -> Dict[str, np.ndarr
     calcite_volume = state[:, S["calcite_mol_m3"]] * chem.calcite_molar_mass_kg_mol / chem.calcite_density_kg_m3
     csh_volume = state[:, S["csh_volume_fraction"]]
     solid_fraction = np.clip(calcite_volume + csh_volume, 0.0, 1.0)
-    healing = solid_fraction
-    aperture = trans.crack_width_mm * (1.0 - healing)
+    wall_solid_fraction = solid_fraction * chem.wall_deposition_fraction
+    wall_deposition_thickness_mm = 0.5 * trans.crack_width_mm * wall_solid_fraction
+    crack_closure_ratio = np.clip(
+        2.0 * wall_deposition_thickness_mm / trans.crack_width_mm, 0.0, 1.0
+    )
+    aperture = trans.crack_width_mm * (1.0 - crack_closure_ratio)
     porosity = np.maximum(
         trans.porosity_initial - solid_fraction * trans.porosity_initial,
         trans.porosity_minimum,
     )
     phi0 = trans.porosity_initial
     permeability = (porosity / phi0) ** 3 * ((1.0 - phi0) / np.maximum(1.0 - porosity, 1e-12)) ** 2
-    transmissivity = np.maximum(1.0 - healing, 0.0) ** 3
+    transmissivity = np.maximum(1.0 - crack_closure_ratio, 0.0) ** 3
     return {
-        "solid_fraction": solid_fraction,
-        "healing_ratio": healing,
+        "solid_fill_fraction": solid_fraction,
+        "wall_deposition_thickness_mm": wall_deposition_thickness_mm,
+        "crack_closure_ratio": crack_closure_ratio,
+        # Deprecated compatibility alias. New reports use crack_closure_ratio.
+        "healing_ratio": crack_closure_ratio,
         "aperture_mm": aperture,
         "porosity": porosity,
         "permeability_ratio": permeability,
@@ -317,17 +399,36 @@ def _balance(state: np.ndarray) -> Dict[str, float]:
     return {"carbon": float(np.mean(carbon)), "calcium": float(np.mean(calcium))}
 
 
-def _summary(state: np.ndarray, config: ModelConfig) -> Dict[str, float]:
+def _total_crack_volume_m3(config: ModelConfig, level: str) -> float:
+    trans = config.transport
+    unresolved_mm = (
+        trans.out_of_plane_thickness_mm if level == "2d" else trans.crack_depth_mm
+    )
+    return (
+        trans.crack_length_mm
+        * trans.crack_width_mm
+        * unresolved_mm
+        * 1.0e-9
+    )
+
+
+def _summary(state: np.ndarray, config: ModelConfig, level: str) -> Dict[str, float]:
     metrics = repair_metrics(state, config)
+    calcite_mean = float(np.mean(state[:, S["calcite_mol_m3"]]))
     return {
-        "mean_healing_ratio": float(np.mean(metrics["healing_ratio"])),
-        "max_healing_ratio": float(np.max(metrics["healing_ratio"])),
+        "mean_crack_closure_ratio": float(np.mean(metrics["crack_closure_ratio"])),
+        "max_crack_closure_ratio": float(np.max(metrics["crack_closure_ratio"])),
+        "mean_healing_ratio": float(np.mean(metrics["crack_closure_ratio"])),
         "mean_permeability_ratio": float(np.mean(metrics["permeability_ratio"])),
         "mean_transmissivity_ratio": float(np.mean(metrics["transmissivity_ratio"])),
-        "calcite_mol_m3_mean": float(np.mean(state[:, S["calcite_mol_m3"]])),
+        "calcite_mol_m3_mean": calcite_mean,
         "calcite_kg_m3_mean": float(
-            np.mean(state[:, S["calcite_mol_m3"]]) * config.chemistry.calcite_molar_mass_kg_mol
+            calcite_mean * config.chemistry.calcite_molar_mass_kg_mol
         ),
+        "calcite_mass_mg": calcite_mean
+        * _total_crack_volume_m3(config, level)
+        * config.chemistry.calcite_molar_mass_kg_mol
+        * 1.0e6,
         "ammonium_mol_m3_max": float(np.max(state[:, S["ammonium_mol_m3"]])),
     }
 
@@ -336,6 +437,31 @@ def _state_frame(state: np.ndarray, time_d: float, config: ModelConfig, coordina
     values = {name: state[:, index] for index, name in enumerate(STATE_NAMES)}
     values.update(repair_metrics(state, config))
     values.update(coordinates)
+    n_cells = state.shape[0]
+    trans = config.transport
+    if "y_mm" in coordinates:
+        dx_m = trans.crack_length_mm * 1.0e-3 / max(trans.nx_2d - 1, 1)
+        dy_m = trans.crack_width_mm * 1.0e-3 / max(trans.ny_2d - 1, 1)
+        thickness_m = trans.out_of_plane_thickness_mm * 1.0e-3
+        cell_volume = dx_m * dy_m * thickness_m
+        wall_area = 2.0 * dx_m * thickness_m / trans.ny_2d
+    elif "x_mm" in coordinates:
+        dx_m = trans.crack_length_mm * 1.0e-3 / max(trans.nx_1d - 1, 1)
+        depth_m = trans.crack_depth_mm * 1.0e-3
+        cell_volume = dx_m * trans.crack_width_mm * 1.0e-3 * depth_m
+        wall_area = 2.0 * dx_m * depth_m
+    else:
+        cell_volume = _total_crack_volume_m3(config, "0d")
+        wall_area = 2.0 * trans.crack_length_mm * trans.crack_depth_mm * 1.0e-6
+    values["cell_volume_m3"] = np.full(n_cells, cell_volume)
+    values["wall_area_m2"] = np.full(n_cells, wall_area)
+    values["ph"] = _state_ph(state, config)
+    effective_gate = config.kinetics.basal_leak_fraction + (
+        1.0 - config.kinetics.basal_leak_fraction
+    ) * state[:, S["activation_state"]]
+    signal = state[:, S["environment_signal"]]
+    values["true_activation_index"] = effective_gate * signal
+    values["false_activation_index"] = effective_gate * (1.0 - signal)
     values["time_d"] = np.full(state.shape[0], time_d)
     return pd.DataFrame(values)
 
@@ -353,6 +479,7 @@ def _diagnostics(initial: np.ndarray, final: np.ndarray, config: ModelConfig) ->
         "closed_system": config.simulation.closed_system,
         "nonnegative": bool(np.min(final) >= -1e-10),
         "ammonia_free": bool(np.max(final[:, S["ammonium_mol_m3"]]) == 0.0),
+        "ph_charge_balance_solved": config.simulation.ph_mode == "dynamic",
         "note": "Open-system balance changes include boundary transport and oxygen exchange.",
     }
 
@@ -374,7 +501,7 @@ def simulate_0d(config: Optional[ModelConfig] = None, geochem: Optional[GeochemL
             state = _reaction_step(state, time_s, dt, config, geochem)
             time_s += dt
         frames.append(_state_frame(state, target / SECONDS_PER_DAY, config, {}))
-    return SimulationResult("0d", pd.concat(frames, ignore_index=True), _summary(state, config), _diagnostics(initial, state, config), config)
+    return SimulationResult("0d", pd.concat(frames, ignore_index=True), _summary(state, config, "0d"), _diagnostics(initial, state, config), config)
 
 
 def _capsule_profile_1d(config: ModelConfig) -> Tuple[np.ndarray, np.ndarray]:
@@ -489,7 +616,7 @@ def _transport_step(
 ) -> np.ndarray:
     _, wet_factor = _environment(time_s + 0.5 * dt_s, config)
     metrics = repair_metrics(state, config)
-    obstruction = np.maximum(1.0 - metrics["healing_ratio"], 1e-3) ** config.transport.tortuosity_exponent
+    obstruction = np.maximum(1.0 - metrics["crack_closure_ratio"], 1e-3) ** config.transport.tortuosity_exponent
     base_diffusivity = {
         "lactate": config.transport.diffusivity_lactate_m2_s,
         "oxygen": config.transport.diffusivity_oxygen_m2_s,
@@ -557,7 +684,7 @@ def _spatial_simulation(
     diagnostics = _diagnostics(initial, state, config)
     diagnostics["grid_shape"] = list(shape)
     diagnostics["true_spatial_solver"] = True
-    return SimulationResult(level, pd.concat(frames, ignore_index=True), _summary(state, config), diagnostics, config)
+    return SimulationResult(level, pd.concat(frames, ignore_index=True), _summary(state, config, level), diagnostics, config)
 
 
 def simulate_1d(config: Optional[ModelConfig] = None, geochem: Optional[GeochemLookup] = None) -> SimulationResult:

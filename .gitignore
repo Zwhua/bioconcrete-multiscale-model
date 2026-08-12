@@ -25,8 +25,15 @@ perform/
 # Raw public databases are large and may have redistribution restrictions
 data/*
 !data/README.md
+!data/public/
+!data/public/**
 !data/processed/
 !data/processed/**
+data/public/raw/
+data/public/work/
+data/public/receipts/
+data/public/derived/
+data/processed/geochem_v020/
 
 # Keep only curated baseline runs and validation evidence
 model_runs/*
@@ -38,4 +45,3 @@ model_runs/*
 # Local calibration inputs and transient outputs
 experiment*.csv
 calibration_data/
-

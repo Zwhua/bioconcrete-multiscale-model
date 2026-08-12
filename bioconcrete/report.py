@@ -16,8 +16,8 @@ import pandas as pd
 
 def _plot_0d(frame: pd.DataFrame, output: Path) -> None:
     fig, left = plt.subplots(figsize=(8, 5))
-    left.plot(frame["time_d"], 100.0 * frame["healing_ratio"], color="#176b87", linewidth=2, label="Healing")
-    left.set(xlabel="Time (d)", ylabel="Healing ratio (%)", ylim=(0, 100))
+    left.plot(frame["time_d"], 100.0 * frame["crack_closure_ratio"], color="#176b87", linewidth=2, label="Closure")
+    left.set(xlabel="Time (d)", ylabel="Crack closure (%)", ylim=(0, 100))
     right = left.twinx()
     right.plot(frame["time_d"], 100.0 * frame["transmissivity_ratio"], color="#b44c43", linewidth=2, label="Transmissivity")
     right.set(ylabel="Relative transmissivity (%)", ylim=(0, 105))
@@ -33,8 +33,8 @@ def _plot_1d(frame: pd.DataFrame, output: Path) -> None:
     fig, axis = plt.subplots(figsize=(8, 5))
     for day in sorted(frame["time_d"].unique()):
         selected = frame[frame["time_d"] == day]
-        axis.plot(selected["x_mm"], 100.0 * selected["healing_ratio"], linewidth=2, label="{:g} d".format(day))
-    axis.set(xlabel="Position along crack (mm)", ylabel="Local healing (%)", ylim=(0, 100))
+        axis.plot(selected["x_mm"], 100.0 * selected["crack_closure_ratio"], linewidth=2, label="{:g} d".format(day))
+    axis.set(xlabel="Position along crack (mm)", ylabel="Local crack closure (%)", ylim=(0, 100))
     axis.legend(ncol=2)
     axis.grid(alpha=0.25)
     fig.tight_layout()
@@ -44,7 +44,7 @@ def _plot_1d(frame: pd.DataFrame, output: Path) -> None:
 
 def _plot_2d(frame: pd.DataFrame, output: Path) -> None:
     final = frame[frame["time_d"] == frame["time_d"].max()]
-    pivot = final.pivot(index="y_mm", columns="x_mm", values="healing_ratio")
+    pivot = final.pivot(index="y_mm", columns="x_mm", values="crack_closure_ratio")
     fig, axis = plt.subplots(figsize=(9, 3.4))
     image = axis.imshow(
         100.0 * pivot.to_numpy(),
@@ -53,11 +53,11 @@ def _plot_2d(frame: pd.DataFrame, output: Path) -> None:
         extent=[final["x_mm"].min(), final["x_mm"].max(), final["y_mm"].min(), final["y_mm"].max()],
         cmap="viridis",
         vmin=0,
-        vmax=max(10.0, float(100.0 * final["healing_ratio"].max())),
+        vmax=max(10.0, float(100.0 * final["crack_closure_ratio"].max())),
     )
     axis.set(xlabel="Position along crack (mm)", ylabel="Crack width (mm)")
     colorbar = fig.colorbar(image, ax=axis)
-    colorbar.set_label("Healing ratio (%)")
+    colorbar.set_label("Crack closure (%)")
     fig.tight_layout()
     fig.savefig(output, dpi=220)
     plt.close(fig)
@@ -82,8 +82,8 @@ def generate_report(run_dir: Path) -> Path:
     report = """# BioConcrete model report
 
 - Model level: `{level}`
-- Final mean healing: {healing:.3%}
-- Final maximum healing: {maximum:.3%}
+- Final mean crack closure: {healing:.3%}
+- Final maximum crack closure: {maximum:.3%}
 - Mean permeability ratio: {permeability:.4f}
 - Mean crack transmissivity ratio: {transmissivity:.4f}
 - Mean calcite: {calcite:.3f} kg/m3 crack volume
@@ -97,8 +97,8 @@ The 80% healing value is an evaluation target, not a fitted or hard-coded outcom
 Database-derived values are priors. Project-specific rates require calibration against repair experiments.
 """.format(
         level=level,
-        healing=summary["mean_healing_ratio"],
-        maximum=summary["max_healing_ratio"],
+        healing=summary["mean_crack_closure_ratio"],
+        maximum=summary["max_crack_closure_ratio"],
         permeability=summary["mean_permeability_ratio"],
         transmissivity=summary["mean_transmissivity_ratio"],
         calcite=summary["calcite_kg_m3_mean"],
@@ -110,4 +110,3 @@ Database-derived values are priors. Project-specific rates require calibration a
     path = run_dir / "REPORT.md"
     path.write_text(report, encoding="utf-8")
     return path
-

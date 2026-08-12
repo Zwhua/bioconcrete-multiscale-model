@@ -1,9 +1,8 @@
 # BioConcrete multiscale model
 
-This package implements a physicochemical self-healing concrete model. It uses
-population-scale activity only. Protein sequences, strain engineering, genetic
-circuits, mutation design, and biological construction protocols are explicitly
-outside its scope.
+This package implements a physicochemical self-healing concrete model. Its
+biological boundary is an anonymous population-scale activity interface; no
+biological design information or construction details are stored or inferred.
 
 ## Model layers
 
@@ -33,9 +32,11 @@ python -m bioconcrete validate --config model_config.json
 Simulation folders contain `state.csv`, `summary.json`, `diagnostics.json`, the
 exact configuration, a figure, and `REPORT.md`.
 
-## Experimental calibration
+## Public calibration and external validation
 
-The CSV interface accepts `time_d` and any measured subset of:
+The legacy CSV interface remains available. The v0.2 evidence workflow uses the
+traceable public observation schema documented in `data/public/README.md` and
+keeps project experiments, public calibration, and external validation separate.
 
 ```text
 lactate_mM, cfu_mL, caco3_mg, healing_ratio,
@@ -57,8 +58,7 @@ convergence. Add `--full` for the expensive full-duration refined-grid check.
 
 ## Geochemical backend
 
-`build-geochem-grid` validates that the local PHREEQC and CEMDATA files contain
-the expected Calcite, Portlandite, and cement phases. On the current machine no
-PHREEQC executable is installed, so the generated table uses a transparent
-carbonate-equilibrium approximation and records that fact in
-`geochem_metadata.json`.
+`build-phreeqc-grid` records the backend that actually generated the table. On
+the current machine no PHREEQC executable is installed, so the table is labelled
+`analytical_surrogate`. `compare-geochem-backends` therefore reports
+`claim_allowed: false`; no PHREEQC-coupling claim is made.

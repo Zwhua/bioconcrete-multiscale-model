@@ -1,0 +1,1 @@
+dataset_id,specimen_id,group_id,split,time_d,initial_crack_width_mm,current_crack_width_mm,conditioning,wet_hours_per_day,agent_dosage,calcite_mass_mg,permeability_ratio,stiffness_ratio,measurement_sd,source_file,source_location

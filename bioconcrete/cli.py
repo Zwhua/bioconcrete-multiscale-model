@@ -9,12 +9,18 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from .analysis import calibrate, sensitivity
-from .chemistry import GeochemLookup, build_geochem_grid
+from .chemistry import GeochemLookup, build_geochem_grid, compare_geochem_backends
 from .config import ModelConfig
 from .data_pipeline import prepare_data
 from .model import simulate_0d, simulate_1d, simulate_2d
 from .report import generate_report
 from .validation import run_validation
+from .evidence import calibrate_public, fit_measurement_error, validate_external
+from .formal_analysis import formal_sensitivity
+from .public_data import fetch_public_data, prepare_public_data
+from .data_pipeline import parameter_registry
+from .design import design_matrix
+from .evidence_report import evidence_report
 
 
 def _root() -> Path:
@@ -48,9 +54,23 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--output", default="data/processed/model_priors")
     prepare.add_argument("--config")
 
+    fetch = subparsers.add_parser("fetch-public-data", help="download manifest-selected public evidence files")
+    fetch.add_argument("--manifest", default="data/public/DATASETS.yml")
+    fetch.add_argument("--dataset")
+
+    prepare_public = subparsers.add_parser("prepare-public-data", help="normalize one downloaded public dataset")
+    prepare_public.add_argument("--dataset", required=True)
+
     geochem = subparsers.add_parser("build-geochem-grid", help="build carbonate and cement-phase lookup files")
     geochem.add_argument("--output", default="data/processed/geochem")
     geochem.add_argument("--config")
+    phreeqc = subparsers.add_parser("build-phreeqc-grid", help="build a grid and record whether PHREEQC is actually available")
+    phreeqc.add_argument("--output", default="data/processed/geochem")
+    phreeqc.add_argument("--config")
+    compare = subparsers.add_parser("compare-geochem-backends", help="compare PHREEQC and analytical backends when available")
+    compare.add_argument("--grid", default="data/processed/geochem/carbonate_lookup.csv")
+    compare.add_argument("--metadata", default="data/processed/geochem/geochem_metadata.json")
+    compare.add_argument("--output", default="model_runs/geochem_comparison")
 
     simulate = subparsers.add_parser("simulate", help="run the 0D, 1D, or true 2D model")
     simulate.add_argument("--level", choices=("0d", "1d", "2d"), required=True)
@@ -68,6 +88,41 @@ def build_parser() -> argparse.ArgumentParser:
     sens.add_argument("--config")
     sens.add_argument("--output", default="model_runs/sensitivity")
     sens.add_argument("--samples", type=int, default=8)
+
+    formal = subparsers.add_parser("formal-sensitivity", help="run SALib Morris and Sobol analyses")
+    formal.add_argument("--config")
+    formal.add_argument("--output", default="model_runs/formal_sensitivity")
+    formal.add_argument("--samples", type=int, default=256)
+
+    public_cal = subparsers.add_parser("calibrate-public", help="fit public calibration data with specimen holdout")
+    public_cal.add_argument("--train", required=True)
+    public_cal.add_argument("--config")
+    public_cal.add_argument("--output", default="model_runs/public_calibration")
+    public_cal.add_argument("--bootstrap", type=int, default=20)
+    public_cal.add_argument("--profile-points", type=int, default=0)
+
+    external = subparsers.add_parser("validate-external", help="validate a frozen public calibration run")
+    external.add_argument("--dataset", required=True)
+    external.add_argument("--frozen-run", required=True)
+    external.add_argument("--output", default="model_runs/external_validation")
+
+    measurement = subparsers.add_parser("fit-measurement-error", help="fit crack-width measurement noise only")
+    measurement.add_argument("--dataset", required=True)
+    measurement.add_argument("--output", default="model_runs/measurement_error")
+
+    audit = subparsers.add_parser("audit-units", help="write the parameter/unit/source audit table")
+    audit.add_argument("--config")
+    audit.add_argument("--output", default="model_runs/unit_audit.csv")
+
+    design = subparsers.add_parser("design-matrix", help="evaluate a preregistered prospective scenario matrix")
+    design.add_argument("--preregister", default="PREREGISTERED_SCENARIOS.yml")
+    design.add_argument("--config")
+    design.add_argument("--output", default="model_runs/design_matrix")
+    design.add_argument("--limit", type=int)
+
+    evidence = subparsers.add_parser("evidence-report", help="report completed and missing evidence components")
+    evidence.add_argument("--run", required=True)
+    evidence.add_argument("--output", default="model_runs/evidence_report")
 
     report = subparsers.add_parser("report", help="create figures and a Markdown report for a simulation run")
     report.add_argument("--run", required=True)
@@ -91,10 +146,22 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         summary = prepare_data(root, Path(args.output), _config(args.config))
         print(json.dumps(summary, indent=2))
         return
-    if args.command == "build-geochem-grid":
+    if args.command == "fetch-public-data":
+        summary = fetch_public_data(Path(args.manifest), root / "data" / "public", args.dataset)
+        print(json.dumps(summary, indent=2))
+        return
+    if args.command == "prepare-public-data":
+        summary = prepare_public_data(args.dataset, root / "data" / "public")
+        print(json.dumps(summary, indent=2))
+        return
+    if args.command in {"build-geochem-grid", "build-phreeqc-grid"}:
         config = _config(args.config)
         paths = build_geochem_grid(Path(args.output), config.chemistry, root, config.environment.temperature_c)
         print("\n".join(str(path.resolve()) for path in paths))
+        return
+    if args.command == "compare-geochem-backends":
+        result = compare_geochem_backends(Path(args.grid), Path(args.metadata), Path(args.output))
+        print(json.dumps(result, indent=2))
         return
     if args.command == "simulate":
         config = _config(args.config)
@@ -114,6 +181,38 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.command == "sensitivity":
         morris, sobol = sensitivity(Path(args.output), _config(args.config), args.samples)
         print(sobol.sort_values("ST", ascending=False).to_string(index=False))
+        return
+    if args.command == "formal-sensitivity":
+        _, sobol = formal_sensitivity(Path(args.output), _config(args.config), args.samples)
+        print(sobol.sort_values("ST", ascending=False).to_string(index=False))
+        return
+    if args.command == "calibrate-public":
+        result = calibrate_public(
+            Path(args.train), Path(args.output), _config(args.config), args.bootstrap, args.profile_points
+        )
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "validate-external":
+        result = validate_external(Path(args.dataset), Path(args.frozen_run), Path(args.output))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "fit-measurement-error":
+        result = fit_measurement_error(Path(args.dataset), Path(args.output))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "audit-units":
+        path = Path(args.output)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        parameter_registry(_config(args.config)).to_csv(path, index=False)
+        print(path.resolve())
+        return
+    if args.command == "design-matrix":
+        result = design_matrix(Path(args.preregister), Path(args.output), _config(args.config), args.limit)
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "evidence-report":
+        result = evidence_report(root, Path(args.run), Path(args.output))
+        print(json.dumps(result, indent=2))
         return
     if args.command == "report":
         print(generate_report(Path(args.run)).resolve())

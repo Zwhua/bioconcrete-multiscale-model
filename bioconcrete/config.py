@@ -14,6 +14,7 @@ class SimulationConfig:
     output_interval_days: float = 1.0
     reaction_step_h: float = 12.0
     carbonate_mode: str = "equilibrium"
+    ph_mode: str = "dynamic"
     closed_system: bool = False
     random_seed: int = 2026
 
@@ -30,11 +31,14 @@ class EnvironmentConfig:
     exposure: str = "intermittent"
     wet_hours_per_day: float = 12.0
     oxygen_transfer_s: float = 2.0e-6
+    initial_alkalinity_mol_m3: float = 35.0
+    ph_minimum: float = 6.0
+    ph_maximum: float = 13.5
 
 
 @dataclass
 class MicrobialKineticsConfig:
-    """Population-scale kinetics without strain, sequence, or circuit details."""
+    """Anonymous population-scale activity without construction details."""
 
     capsule_calcium_lactate_mol_m3: float = 8000.0
     capsule_csh_volume_fraction: float = 0.035
@@ -48,6 +52,10 @@ class MicrobialKineticsConfig:
     alkaline_decay_s: float = 4.0e-7
     encapsulation_decay_m3_mol: float = 1.0e-5
     qmax_lactate_mol_m3_s: float = 2.5e-3
+    effective_kcat_s: float = 2.5e-3
+    effective_km_mol_m3: float = 350.0
+    active_unit_concentration: float = 1.0
+    activity_multiplier: float = 1.0
     k_lactate_mol_m3: float = 350.0
     k_oxygen_mol_m3: float = 0.035
     biomass_carbon_fraction: float = 0.08
@@ -58,6 +66,12 @@ class MicrobialKineticsConfig:
     ph_width: float = 2.0
     temperature_optimum_c: float = 30.0
     temperature_width_c: float = 12.0
+    response_delay_h: float = 4.0
+    basal_leak_fraction: float = 0.01
+    activation_duration_h: float = 4.0
+    signal_relaxation_h: float = 1.0
+    oxygen_rise_threshold_mol_m3_h: float = 0.005
+    ph_drop_threshold_h: float = 0.05
 
 
 @dataclass
@@ -75,12 +89,15 @@ class ChemistryConfig:
     calcite_molar_mass_kg_mol: float = 0.1000869
     calcite_density_kg_m3: float = 2710.0
     csh_density_kg_m3: float = 2400.0
+    wall_deposition_fraction: float = 0.75
 
 
 @dataclass
 class TransportConfig:
     crack_length_mm: float = 100.0
     crack_width_mm: float = 0.30
+    crack_depth_mm: float = 20.0
+    out_of_plane_thickness_mm: float = 1.0
     nx_1d: int = 51
     nx_2d: int = 15
     ny_2d: int = 5
@@ -111,10 +128,16 @@ class ModelConfig:
             raise ValueError("Simulation duration and time step must be positive")
         if self.simulation.carbonate_mode not in {"equilibrium", "kinetic"}:
             raise ValueError("carbonate_mode must be 'equilibrium' or 'kinetic'")
+        if self.simulation.ph_mode not in {"dynamic", "fixed"}:
+            raise ValueError("ph_mode must be 'dynamic' or 'fixed'")
         if self.environment.exposure not in {"intermittent", "continuous", "dry"}:
             raise ValueError("exposure must be intermittent, continuous, or dry")
         if not 0 <= self.kinetics.biomass_carbon_fraction < 1:
             raise ValueError("biomass_carbon_fraction must be in [0, 1)")
+        if not 0 <= self.kinetics.basal_leak_fraction <= 1:
+            raise ValueError("basal_leak_fraction must be in [0, 1]")
+        if not 0 <= self.chemistry.wall_deposition_fraction <= 1:
+            raise ValueError("wall_deposition_fraction must be in [0, 1]")
         if min(self.transport.nx_1d, self.transport.nx_2d, self.transport.ny_2d) < 3:
             raise ValueError("Each spatial grid dimension must contain at least three cells")
         if self.transport.crack_width_mm <= 0 or self.transport.crack_length_mm <= 0:
@@ -157,13 +180,18 @@ def _load_dataclass(kind: Type[T], values: Mapping[str, Any]) -> T:
 
 PARAMETER_PROVENANCE = {
     "kinetics.qmax_lactate_mol_m3_s": ("model prior", "aggregate substrate utilization rate; requires calibration", 5.0e-5, 1.0e-2),
-    "kinetics.k_lactate_mol_m3": ("database aggregate", "public kinetic records summarized without sequence information", 1.0, 5000.0),
+    "kinetics.k_lactate_mol_m3": ("database aggregate", "anonymous summary of public kinetic records", 1.0, 5000.0),
     "kinetics.k_oxygen_mol_m3": ("literature prior", "aerobic Monod half-saturation", 0.005, 0.20),
     "kinetics.decay_s": ("literature prior", "protected population-scale decay", 1.0e-8, 2.0e-6),
     "kinetics.capsule_release_s": ("project hypothesis", "effective release rate", 1.0e-7, 3.0e-5),
     "chemistry.calcite_rate_mol_m3_s": ("literature prior", "saturation-index precipitation law", 1.0e-7, 1.0e-2),
     "chemistry.calcite_ksp": ("thermodynamic database", "PHREEQC calcite at ambient temperature", 2.5e-9, 5.0e-9),
     "transport.diffusivity_oxygen_m2_s": ("literature prior", "aqueous oxygen/CO2 scale", 5.0e-10, 3.0e-9),
-    "transport.crack_width_mm": ("project experiment", "planned crack range 0.1-0.5 mm", 0.05, 0.50),
+    "transport.crack_width_mm": ("preregistered scenario", "fixed prospective crack range", 0.05, 0.50),
     "chemistry.portlandite_mol_m3": ("project hypothesis", "effective crack-adjacent reservoir", 100.0, 15000.0),
+    "kinetics.effective_kcat_s": ("database aggregate", "anonymous effective catalytic prior", 5.0e-5, 1.0e-2),
+    "kinetics.response_delay_h": ("scenario prior", "anonymous response delay", 0.0, 24.0),
+    "kinetics.basal_leak_fraction": ("scenario prior", "anonymous basal activity", 0.0, 0.10),
+    "chemistry.wall_deposition_fraction": ("public calibration data", "fraction of solid deposited at crack walls", 0.05, 1.0),
+    "kinetics.activity_multiplier": ("public calibration data", "anonymous dataset-scale effective activity", 0.5, 5.0),
 }

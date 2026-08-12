@@ -1,4 +1,4 @@
-"""Prepare aggregate, non-sequence parameter priors from local public data."""
+"""Prepare anonymous aggregate parameter priors from local public data."""
 
 from __future__ import annotations
 
@@ -182,6 +182,11 @@ def parameter_registry(config: ModelConfig) -> pd.DataFrame:
         "transport.diffusivity_oxygen_m2_s": "m^2 s^-1",
         "transport.crack_width_mm": "mm",
         "chemistry.portlandite_mol_m3": "mol m^-3",
+        "kinetics.effective_kcat_s": "s^-1",
+        "kinetics.response_delay_h": "h",
+        "kinetics.basal_leak_fraction": "1",
+        "chemistry.wall_deposition_fraction": "1",
+        "kinetics.activity_multiplier": "1",
     }
     rows = []
     for parameter, provenance in PARAMETER_PROVENANCE.items():
@@ -202,7 +207,7 @@ def parameter_registry(config: ModelConfig) -> pd.DataFrame:
 
 
 def prepare_data(project_root: Path, output_dir: Path, config: Optional[ModelConfig] = None) -> Dict[str, Any]:
-    """Create aggregate priors; sequence and strain-specific records are excluded."""
+    """Create aggregate priors while excluding biological design information."""
 
     config = config or ModelConfig()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -217,7 +222,7 @@ def prepare_data(project_root: Path, output_dir: Path, config: Optional[ModelCon
     registry.to_csv(output_dir / "parameter_registry.csv", index=False)
     summary = {
         "scope": "aggregate physicochemical and population-scale priors only",
-        "excluded": ["protein sequences", "strain-specific records", "genetic circuits", "mutation sites"],
+        "excluded": ["biological design information", "construction details", "identifying molecular records"],
         "target_reaction_classes": list(TARGET_EC),
         "sabio_summary_rows": int(len(sabio)),
         "brenda_summary_rows": int(len(brenda)),

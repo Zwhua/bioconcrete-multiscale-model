@@ -1,0 +1,26 @@
+schema_version: 1
+datasets:
+  transet_18clsu02:
+    record_id: 3471960
+    doi: 10.5281/zenodo.3471961
+    role: public_calibration_data
+    title: Self-Healing Concrete using Encapsulated Bacterial Spores in a Simulated Hot Subtropical Climate
+    selected_files:
+      - TranSET_18CLSU02_Data.zip
+    redistribution: metadata_and_scripts_only
+  marine_external:
+    record_id: 11305154
+    doi: 10.5281/zenodo.11305154
+    role: external_validation_data
+    title: Self-healing concrete with a bacteria-based or crystalline admixture in a marine environment
+    selected_files:
+      - 02_Mar_Microscope measurements.xlsx
+      - 06_Mar_Mass change.xlsx
+    redistribution: metadata_and_scripts_only
+  krkcmd:
+    record_id: 14568863
+    doi: 10.5281/zenodo.14568863
+    role: measurement_error_data
+    title: krkCMd crack-width measurement dataset
+    selected_files: []
+    redistribution: access_dependent_metadata_and_scripts_only

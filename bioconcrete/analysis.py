@@ -160,7 +160,7 @@ def _evaluate(config: ModelConfig, paths: Sequence[str], unit_values: np.ndarray
     return simulate_0d(trial).summary["mean_healing_ratio"]
 
 
-def sensitivity(
+def legacy_sensitivity(
     output_dir: Path,
     config: Optional[ModelConfig] = None,
     samples: int = 8,
@@ -175,6 +175,7 @@ def sensitivity(
         "transport.crack_width_mm",
     ),
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Deprecated non-standard approximation retained only for reproducibility."""
     config = copy.deepcopy(config or ModelConfig())
     dimension = len(parameters)
     samples = max(int(samples), 4)
@@ -217,3 +218,7 @@ def sensitivity(
     sobol.to_csv(output_dir / "sobol_indices.csv", index=False)
     morris.to_csv(output_dir / "morris_indices.csv", index=False)
     return morris, sobol
+
+
+# Backward-compatible name. Reports must label this implementation non-formal.
+sensitivity = legacy_sensitivity

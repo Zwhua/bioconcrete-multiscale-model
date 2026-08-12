@@ -1,0 +1,15 @@
+schema_version: 1
+preregistered_at_utc: 2026-08-12T00:00:00Z
+status: fixed_before_external_validation
+evidence_label: public-data-supported prediction requiring prospective validation
+factors:
+  crack_width_mm: [0.1, 0.3, 0.5]
+  agent_dosage: [0.5, 1.0, 2.0]
+  wet_hours_per_day: [6, 12, 24]
+  activity_multiplier: [0.5, 1, 2, 5]
+  response_delay_h: [0, 4, 12, 24]
+  basal_leak_fraction: [0, 0.01, 0.05, 0.10]
+objectives:
+  maximize: [closure_28d, closure_per_agent, target_probability]
+  minimize: [time_to_50pct_d, permeability_ratio, premature_consumption]
+classification: [recommended, robust_alternative, not_recommended]
