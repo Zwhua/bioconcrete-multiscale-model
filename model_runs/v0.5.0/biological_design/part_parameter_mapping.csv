@@ -1,0 +1,8 @@
+design_category,model_parameter,unit,expected_direction,required_measurement,source_class,identifiability,distinguishable_now,evidence_label
+surface_localization,kinetics.active_unit_concentration,relative active unit m-3,increase,surface-associated signal and retained activity,design hypothesis,weakly identifiable,False,uncalibrated prospective model prediction
+linker_accessibility,kinetics.activity_multiplier,dimensionless,context dependent,matched construct relative activity under concrete-relevant conditions,design hypothesis,not identifiable without matched controls,False,uncalibrated prospective model prediction
+candidate_enzyme_activity,kinetics.effective_kcat_s,s-1,increase,aggregate kinetics and stability under matched pH and temperature,database prior,scenario only,False,uncalibrated prospective model prediction
+repair_unit_loading,kinetics.spore_density_rel,relative inventory m-3,increase,viable or culturable unit inventory after encapsulation,project measurement required,weakly identifiable,False,uncalibrated prospective model prediction
+encapsulation_material,kinetics.capsule_release_s,s-1,design dependent,release and retained-activity time courses,public calibration pending,estimable with substrate time series,True,uncalibrated prospective model prediction
+encapsulation_material,kinetics.basal_leak_fraction,dimensionless,decrease,dry-state and pre-crack material loss,public calibration pending,estimable with early inventory,True,uncalibrated prospective model prediction
+csh_payload,kinetics.capsule_csh_volume_fraction,m3 m-3 repair inventory,increase,abiotic C-S-H control and released solid volume,project measurement required,confounded with wall deposition,True,uncalibrated prospective model prediction

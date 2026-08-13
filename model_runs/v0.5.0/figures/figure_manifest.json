@@ -1,0 +1,16 @@
+{
+  "generated": [
+    "figure01_model_to_decision"
+  ],
+  "missing": [
+    "figure02_closure_waterfall",
+    "figure03_counterfactual_tornado",
+    "figure04_prior_uncertainty",
+    "figure05_width_dose_surface",
+    "figure06_pareto_front",
+    "figure07_experiment_information",
+    "figure08_multiscale"
+  ],
+  "evidence_label": "uncalibrated prospective model prediction",
+  "substitute_data_generated": false
+}

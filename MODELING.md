@@ -98,6 +98,19 @@ Public database values are parameter priors. The software does not treat them
 as measurements of the project material. An 80% healing ratio is shown only as
 an evaluation target and is never hard-coded into the equations.
 
+## V5 model-to-decision analyses
+
+V5 bottlenecks are determined from positive and negative parameter
+counterfactuals and normalized output control coefficients. The V4 rule-based
+classifier is retained only for historical reproducibility. Experimental plans
+use central finite-difference model Jacobians, explicit measurement covariance
+and sequential Fisher information gain. Model-structure comparisons evaluate
+each observation at its actual time, crack width, dose and wetting condition.
+
+The anonymous design layer maps design categories to measurable aggregate
+parameters. It contains no sequence, mutation, vector or construction details.
+All current V5 outputs are labelled `uncalibrated prospective model prediction`.
+
 `validate` checks mass balance, limiting cases, time-step convergence, and grid
 convergence. Add `--full` for the expensive full-duration refined-grid check.
 

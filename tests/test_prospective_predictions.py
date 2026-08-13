@@ -17,7 +17,7 @@ class ProspectivePredictionTests(unittest.TestCase):
         }
         for prediction in content["predictions"]:
             self.assertTrue(required.issubset(prediction))
-            self.assertIn("requiring future experimental validation", prediction["evidence_class"])
+            self.assertEqual(prediction["evidence_class"], "uncalibrated prospective model prediction")
 
 
 if __name__ == "__main__":

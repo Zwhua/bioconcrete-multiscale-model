@@ -80,9 +80,9 @@ the mechanistic model beside zero-mineralization and first-order baselines.
 
 ## How the model changes experimental design
 
-The V4 candidate separates sensitivity from estimability, ranks future
-measurements by a D-optimal information proxy, classifies activity, substrate,
-calcium, oxygen, transport, geometry and release bottlenecks, and preserves
+The V5 candidate separates sensitivity from estimability, selects complementary
+future measurements from numerical model Jacobians and Fisher information,
+determines bottlenecks from counterfactual model responses, and preserves
 negative findings. In particular, negligible benefit from increasing aggregate
 activity is treated as evidence of another model bottleneck, not removed from
 the narrative.

@@ -29,7 +29,7 @@ class DecisionSupportTests(unittest.TestCase):
             rejected = pd.read_csv(root / "out" / "rejected_conditions.csv")
             self.assertTrue(set(REQUIRED_FIELDS).issubset(recommended.columns))
             self.assertEqual(len(rejected), 1)
-            self.assertEqual(set(recommended["evidence_level"]), {"Model-informed experimental plan"})
+            self.assertEqual(set(recommended["evidence_level"]), {"uncalibrated prospective model prediction"})
 
 
 if __name__ == "__main__":

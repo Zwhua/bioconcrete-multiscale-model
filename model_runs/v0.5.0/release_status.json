@@ -1,0 +1,14 @@
+{
+  "release_version": "0.5.0",
+  "release_directory": "C:\\Users\\Lenovo\\Desktop\\igem\\model_runs\\v0.5.0",
+  "initialized": true,
+  "formal_analyses_complete": false,
+  "long_run_required": true,
+  "next_commands": [
+    "formal-sensitivity --samples 1024 --workers 16 --resume",
+    "design-matrix --workers 16 --resume",
+    "counterfactual-bottleneck --workers 16 --resume",
+    "design-experiments --method numerical-d-optimal"
+  ],
+  "evidence_label": "uncalibrated prospective model prediction"
+}

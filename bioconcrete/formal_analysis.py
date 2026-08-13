@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import hashlib
 import json
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
@@ -49,8 +51,100 @@ def _evaluate_matrix(matrix: np.ndarray, problem: Dict[str, object], config: Mod
     return output
 
 
+def _config_from_dict(raw: Dict[str, object]) -> ModelConfig:
+    config = ModelConfig()
+    for section, values in raw.items():
+        for name, value in values.items():
+            setattr(getattr(config, section), name, value)
+    config.validate()
+    return config
+
+
+def _sample_id(method: str, index: int, row: np.ndarray) -> str:
+    payload = method + "|" + str(index) + "|" + ",".join("{:.17g}".format(value) for value in row)
+    return hashlib.sha256(payload.encode()).hexdigest()[:20]
+
+
+def _evaluate_sample(payload: Tuple[str, int, np.ndarray, Dict[str, object], Dict[str, object]]) -> Dict[str, object]:
+    method, index, row, problem, raw = payload
+    config = _config_from_dict(raw)
+    config.simulation.output_interval_days = config.simulation.days
+    for name, value in zip(problem["names"], row):
+        _set_parameter(config, name, float(value))
+    value = simulate_0d(config).summary["mean_crack_closure_ratio"]
+    return {"sample_id": _sample_id(method, index, row), "method": method,
+            "sample_index": index, **{name: float(value) for name, value in zip(problem["names"], row)},
+            "response": float(value)}
+
+
+def evaluate_resumable(
+    matrices: Dict[str, np.ndarray], problem: Dict[str, object], config: ModelConfig,
+    output_dir: Path, workers: int = 1, resume: bool = False,
+) -> Tuple[Dict[str, np.ndarray], pd.DataFrame]:
+    """Evaluate deterministic sensitivity designs with resume and failure traces."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / "sensitivity_samples.csv"
+    existing = pd.read_csv(path) if resume and path.exists() else pd.DataFrame()
+    rows = existing.to_dict("records") if len(existing) else []
+    completed = set(existing.get("sample_id", pd.Series(dtype=str)).astype(str))
+    tasks = []
+    raw = config.to_dict()
+    for method, matrix in matrices.items():
+        for index, row in enumerate(matrix):
+            if _sample_id(method, index, row) not in completed:
+                tasks.append((method, index, row, problem, raw))
+    failures = []
+
+    pending_writes = {"count": 0}
+
+    def flush() -> None:
+        frame = pd.DataFrame(rows).sort_values(["method", "sample_index"])
+        temporary = path.with_suffix(".tmp")
+        frame.to_csv(temporary, index=False)
+        temporary.replace(path)
+        pending_writes["count"] = 0
+
+    def record(row: Dict[str, object]) -> None:
+        rows.append(row)
+        pending_writes["count"] += 1
+        if pending_writes["count"] >= 16:
+            flush()
+
+    if workers <= 1:
+        for task in tasks:
+            try:
+                record(_evaluate_sample(task))
+            except Exception as error:
+                failures.append({"sample_id": _sample_id(task[0], task[1], task[2]), "error": str(error)})
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_evaluate_sample, task): task for task in tasks}
+            for future in as_completed(futures):
+                try:
+                    record(future.result())
+                except Exception as error:
+                    task = futures[future]
+                    failures.append({"sample_id": _sample_id(task[0], task[1], task[2]), "error": str(error)})
+    if pending_writes["count"] or not path.exists():
+        flush()
+    frame = pd.DataFrame(rows).drop_duplicates("sample_id", keep="last")
+    temporary = path.with_suffix(".tmp")
+    frame.sort_values(["method", "sample_index"]).to_csv(temporary, index=False)
+    temporary.replace(path)
+    pd.DataFrame(failures, columns=["sample_id", "error"]).to_csv(output_dir / "failed_samples.csv", index=False)
+    outputs = {}
+    for method, matrix in matrices.items():
+        selected = frame.loc[frame["method"] == method].sort_values("sample_index")
+        if len(selected) != len(matrix):
+            raise RuntimeError("{} sensitivity design incomplete: {}/{}".format(method, len(selected), len(matrix)))
+        outputs[method] = selected["response"].to_numpy(float)
+    return outputs, frame
+
+
 def formal_sensitivity(output_dir: Path, config: Optional[ModelConfig] = None,
-                       samples: int = 256, seed: int = 2026) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                       samples: int = 256, seed: int = 2026, workers: int = 1,
+                       resume: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Run independent-trajectory Morris and Saltelli/Sobol designs."""
 
     try:
@@ -66,7 +160,11 @@ def formal_sensitivity(output_dir: Path, config: Optional[ModelConfig] = None,
     np.random.seed(seed)
     morris_x = morris_sample.sample(problem, N=max(16, samples // 4), num_levels=4,
                                     optimal_trajectories=None, seed=seed)
-    morris_y = _evaluate_matrix(morris_x, problem, base)
+    sobol_x = saltelli.sample(problem, samples, calc_second_order=False)
+    evaluated, sample_frame = evaluate_resumable(
+        {"morris": morris_x, "sobol": sobol_x}, problem, base, output_dir, workers, resume
+    )
+    morris_y = evaluated["morris"]
     morris_result = morris_analyze.analyze(problem, morris_x, morris_y, num_levels=4,
                                            num_resamples=500, conf_level=.95,
                                            print_to_console=False, seed=seed)
@@ -75,8 +173,7 @@ def formal_sensitivity(output_dir: Path, config: Optional[ModelConfig] = None,
         "mu_star": morris_result["mu_star"], "mu_star_conf": morris_result["mu_star_conf"],
         "sigma": morris_result["sigma"],
     })
-    sobol_x = saltelli.sample(problem, samples, calc_second_order=False)
-    sobol_y = _evaluate_matrix(sobol_x, problem, base)
+    sobol_y = evaluated["sobol"]
     sobol_result = sobol_analyze.analyze(problem, sobol_y, calc_second_order=False,
                                          num_resamples=500, conf_level=.95,
                                          print_to_console=False, seed=seed)
@@ -109,6 +206,8 @@ def formal_sensitivity(output_dir: Path, config: Optional[ModelConfig] = None,
     pd.DataFrame(convergence_rows).to_csv(output_dir / "sobol_convergence.csv", index=False)
     metadata = {"implementation": "SALib", "base_samples": samples,
                 "sobol_evaluations": int(len(sobol_x)), "morris_evaluations": int(len(morris_x)),
-                "indices_clipped": False, "warning": "Rows marked unconverged must not be interpreted."}
+                "indices_clipped": False, "workers": workers, "resume": resume,
+                "completed_evaluations": len(sample_frame),
+                "warning": "Rows marked unconverged must not be interpreted."}
     (output_dir / "formal_sensitivity.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return morris, sobol

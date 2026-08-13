@@ -1,0 +1,44 @@
+{
+  "model_version": "0.5.0",
+  "git_commit": "4266ef98195848512cb3e2ddcbb1158acac8d19c",
+  "git_worktree_dirty": true,
+  "config_sha256": "27fe87972f1c61854052e352ca0a5102533b891f6cfae1319715a5525a9aed21",
+  "input_sha256": {
+    "preregister": "42be20a8cd3de7469888ba9726a02921c8d1599e9cc499278cb08ec94661ca81"
+  },
+  "random_seed": 2026,
+  "started_at_utc": "2026-08-12T17:32:42.194094+00:00",
+  "completed_at_utc": "2026-08-12T17:32:42.223620+00:00",
+  "software_environment": {
+    "python": "3.8.10",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "command": [
+    "release-analysis",
+    "--version",
+    "0.5.0"
+  ],
+  "status": "initialized",
+  "release_warning": "dirty worktree; do not publish formal results",
+  "evidence_label": "uncalibrated prospective model prediction",
+  "workers": 16,
+  "resume": false,
+  "team_wet_lab_rows": 0,
+  "public_calibration_complete": false,
+  "external_evaluation_complete": false,
+  "required_directories": [
+    "baseline",
+    "validation",
+    "identifiability",
+    "uncertainty",
+    "sensitivity",
+    "design_matrix",
+    "model_comparison",
+    "counterfactual_bottleneck",
+    "experiment_design",
+    "biological_design",
+    "decision_support",
+    "dashboard"
+  ],
+  "formal_result_policy": "missing analyses remain missing; smoke output is never promoted"
+}

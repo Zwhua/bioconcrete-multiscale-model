@@ -2,6 +2,8 @@
 
 `DATASETS.yml` separates the evidence roles before any model fitting:
 
+- `bath_aea_spores`: preferred public calibration candidate; repository metadata,
+  license and workbook fields must be verified before calibration;
 - `transet_18clsu02`: public calibration data;
 - `marine_external`: external validation data, never used for fitting shared parameters;
 - `krkcmd`: measurement-error data only.

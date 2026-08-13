@@ -3,13 +3,13 @@
   <h1>BioConcrete Multiscale Model</h1>
   <p><strong>自修复混凝土多尺度反应传输、公开数据校准与不确定性分析工程</strong></p>
   <p>
-    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/version-v0.4.0-176b87" alt="Version v0.4.0"></a>
+    <a href="https://github.com/Zwhua/bioconcrete-multiscale-model/releases/tag/v0.5.0"><img src="https://img.shields.io/badge/version-v0.5.0-176b87" alt="Version v0.5.0"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.8%2B-3776ab" alt="Python 3.8+"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f855a" alt="MIT License"></a>
   </p>
 </div>
 
-当前软件版本为 **v0.4.0**。版本号按
+当前软件版本为 **v0.5.0**。版本号按
 [Semantic Versioning](VERSIONING.md) 维护：兼容修复递增 PATCH，新增兼容功能或科学行为调整递增 MINOR，不兼容接口或数据格式调整递增 MAJOR。每次发布前会同步代码、README、引用信息和 Git 标签。
 
 本项目建立一个从修复材料释放、环境响应、碳酸盐化学和矿物沉积，一直连接到裂缝闭合与材料性能恢复的数学模型。工程提供可复现的 `0D`、`1D` 和真实 `2D` 求解器，以及公开数据处理、参数校准、独立验证、敏感性分析和预注册设计工具。
@@ -234,35 +234,14 @@ crack_closure_ratio
 
 `80%` 仅是评价目标线，从未被写入方程或强制拟合。
 
-### 结果图表
+### V5 结果图表
 
-以下图表来自 `v0.2.0` 方程与当时的默认先验，属于**历史未校准基线预测**，不能解释为实验结果。后续版本已统一跨尺度总剂量，因此 1D/2D 数值不应用于当前跨尺度定量比较；新图将在冻结公开数据校准流程后重建。
+V5 图表只从 `model_runs/v0.5.0/` 的正式产物生成，不再使用 V0.2 历史图代表当前模型。
+当前已生成 Model-to-Decision 总图；Sobol、1,728 情景、反事实瓶颈和多尺度正式结果尚未完成，
+因此对应图保持缺失，不生成替代数据。运行 `render-figures` 后可在
+`model_runs/v0.5.0/figures/figure_manifest.json` 查看逐图状态。
 
-#### 0D：闭合率与裂缝导流能力随时间变化
-
-![0D uncalibrated baseline time course](docs/assets/results/baseline-0d-timecourse.png)
-
-均匀体系中，预测闭合率在 28 天内逐渐增加至 `2.0819%`，对应相对裂缝导流能力下降至 `0.9388`。曲线没有被约束到 80% 目标线。
-
-#### 1D：裂缝轴向闭合分布
-
-![1D uncalibrated baseline profiles](docs/assets/results/baseline-1d-profiles.png)
-
-闭合峰与八个离散修复材料源的位置一致，并随 7、14、21、28 天逐渐增长。28 天空间平均闭合率为 `0.8366%`，局部最大值为 `2.1325%`。这说明空间平均修复效果可能显著低于局部观察到的最佳位置。
-
-#### 2D：28 天局部闭合热图
-
-![2D uncalibrated baseline map](docs/assets/results/baseline-2d-map.png)
-
-二维图直接求解长度和宽度方向，展示局部修复源、传输和边界条件共同形成的非均匀闭合。为了在 README 构建时间内复现完整 28 天结果，本图采用 `9 x 3` 网格和 24 小时反应步；它仍是真实二维求解，不是一维插值。该展示情景的平均闭合率为 `0.0146%`，局部最大值为 `0.1239%`。默认 `15 x 5` 网格仍用于模型配置和网格收敛验收。
-
-| 层级 | 运行配置 | 28 天平均闭合率 | 局部最大闭合率 | 相对渗透率 | 相对裂缝导流能力 |
-| --- | --- | ---: | ---: | ---: | ---: |
-| 0D | 均匀体系 | 2.0819% | 2.0819% | 0.9079 | 0.9388 |
-| 1D | 51 个轴向节点 | 0.8366% | 2.1325% | 0.9626 | 0.9753 |
-| 2D 展示 | `9 x 3` 网格 | 0.0146% | 0.1239% | 0.9993 | 0.9996 |
-
-不同层级的平均结果不能被简单视为同一试件的三个重复预测。空间模型包含离散源、扩散限制和不同的有效计算体积，主要用于解释空间异质性与局部封堵位置。
+![V5 model-to-decision evidence chain](model_runs/v0.5.0/figures/figure01_model_to_decision.png)
 
 ## 数值验证结果
 
@@ -364,16 +343,16 @@ python -m pip install -e . --no-build-isolation
 生成最新默认配置，不建议继续使用旧版本配置文件：
 
 ```powershell
-python -m bioconcrete default-config --output config-v0.4.0.json
+python -m bioconcrete default-config --output config-v0.5.0.json
 ```
 
 运行模型与验证：
 
 ```powershell
-python -m bioconcrete simulate --level 0d --config config-v0.4.0.json
-python -m bioconcrete simulate --level 1d --config config-v0.4.0.json
-python -m bioconcrete simulate --level 2d --config config-v0.4.0.json
-python -m bioconcrete validate --config config-v0.4.0.json
+python -m bioconcrete simulate --level 0d --config config-v0.5.0.json
+python -m bioconcrete simulate --level 1d --config config-v0.5.0.json
+python -m bioconcrete simulate --level 2d --config config-v0.5.0.json
+python -m bioconcrete validate --config config-v0.5.0.json
 python -m unittest discover -s tests -v
 ```
 
@@ -386,6 +365,11 @@ python -m bioconcrete compare-models --output model_runs/model_comparison
 python -m bioconcrete design-experiments --output model_runs/experiment_design
 python -m bioconcrete design-matrix --workers 8 --resume --output model_runs/design_matrix
 python -m bioconcrete dashboard --output model_runs/dashboard
+python -m bioconcrete counterfactual-bottleneck --workers 16 --resume
+python -m bioconcrete biological-design --output model_runs/v0.5.0/biological_design
+python -m bioconcrete formal-sensitivity --samples 1024 --workers 16 --resume
+python -m bioconcrete release-analysis --version 0.5.0 --workers 16 --resume
+python -m bioconcrete render-figures --run model_runs/v0.5.0
 ```
 
 `identifiability` 不把 Sobol 高敏感参数等同为可识别参数；
@@ -458,7 +442,7 @@ WIKI_MODEL.md           iGEM Wiki 风格模型页面
 
 十项关键科学问题的逐项审计见
 [SCIENTIFIC_AUDIT_V0.4.0.md](SCIENTIFIC_AUDIT_V0.4.0.md)，发布完成度与证据缺口见
-[RELEASE_CHECKLIST_V0.4.0.md](RELEASE_CHECKLIST_V0.4.0.md)。
+[RELEASE_CHECKLIST_V0.5.0.md](RELEASE_CHECKLIST_V0.5.0.md)。V0.4 检查表继续作为历史记录保留。
 
 ## 限制与下一步
 
@@ -471,7 +455,7 @@ WIKI_MODEL.md           iGEM Wiki 风格模型页面
 
 ## 版本、许可与引用
 
-- 当前版本：`v0.4.0`
+- 当前版本：`v0.5.0`
 - 许可证：[MIT](LICENSE)
 - 引用信息：[CITATION.cff](CITATION.cff)
 - 技术说明：[MODELING.md](MODELING.md)

@@ -14,9 +14,9 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from .bottleneck import classify_bottleneck, indicators_from_row
 from .config import ModelConfig
 from .model import simulate_0d
+from .evidence_state import validate_evidence_label
 
 
 def _dominates(a: np.ndarray, b: np.ndarray) -> bool:
@@ -65,9 +65,8 @@ def _evaluate_scenario(payload: Tuple[Dict[str, object], Dict[str, object]]) -> 
         "premature_consumption": 1.0 - remaining / max(initial, 1e-30),
         "target_probability": np.nan, "runtime_s": time.perf_counter() - started,
     }
-    bottleneck = classify_bottleneck(indicators_from_row(row))
-    row["dominant_bottleneck"] = bottleneck["dominant_bottleneck"]
-    row["bottleneck_score"] = bottleneck["score"]
+    row["dominant_bottleneck"] = "pending_counterfactual_analysis"
+    row["bottleneck_score"] = np.nan
     return row
 
 
@@ -81,6 +80,7 @@ def design_matrix(
     prereg = yaml.safe_load(preregister_path.read_text(encoding="utf-8"))
     if prereg.get("status") != "fixed_before_external_validation":
         raise ValueError("Scenario file is not marked fixed before external validation")
+    evidence_label = validate_evidence_label(prereg["evidence_label"])
     factors = prereg["factors"]
     names = list(factors)
     combinations = list(itertools.product(*(factors[name] for name in names)))
@@ -99,9 +99,19 @@ def design_matrix(
             payloads.append((setting, raw_config))
     failures = []
 
+    def flush() -> None:
+        table = pd.DataFrame(rows).sort_values("scenario_id")
+        temporary = output_path.with_suffix(".tmp")
+        table.to_csv(temporary, index=False)
+        temporary.replace(output_path)
+    pending = {"count": 0}
+
     def record(row: Dict[str, object]) -> None:
         rows.append(row)
-        pd.DataFrame(rows).sort_values("scenario_id").to_csv(output_path, index=False)
+        pending["count"] += 1
+        if pending["count"] >= 16:
+            flush()
+            pending["count"] = 0
 
     if max(int(workers), 1) == 1:
         for payload in payloads:
@@ -118,10 +128,12 @@ def design_matrix(
                 except Exception as error:
                     failures.append({"scenario_id": _scenario_id(futures[future][0]), "error": str(error)})
 
+    if pending["count"]:
+        flush()
     frame = pd.DataFrame(rows)
     if len(frame):
         frame = frame.sort_values("scenario_id").drop_duplicates("scenario_id", keep="last").reset_index(drop=True)
-        frame["evidence_label"] = prereg["evidence_label"]
+        frame["evidence_label"] = evidence_label
         objectives = np.column_stack([
             -frame["closure_28d"], frame["permeability_ratio"],
             -frame["closure_per_agent"], frame["premature_consumption"],
@@ -142,7 +154,7 @@ def design_matrix(
     summary = {
         "scenario_count": len(frame),
         "preregister_sha256": hashlib.sha256(preregister_path.read_bytes()).hexdigest(),
-        "evidence_label": prereg["evidence_label"],
+        "evidence_label": evidence_label,
         "monte_carlo_target_probability_available": False,
         "workers": int(workers), "resume": bool(resume),
         "failed_scenarios": len(failures),

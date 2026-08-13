@@ -207,6 +207,6 @@ PARAMETER_PROVENANCE = {
     "kinetics.effective_kcat_s": ("database aggregate", "anonymous effective catalytic prior", 5.0e-5, 1.0e-2),
     "kinetics.response_delay_h": ("scenario prior", "anonymous response delay", 0.0, 24.0),
     "kinetics.basal_leak_fraction": ("scenario prior", "anonymous basal activity", 0.0, 0.10),
-    "chemistry.wall_deposition_fraction": ("public calibration data", "fraction of solid deposited at crack walls", 0.05, 1.0),
-    "kinetics.activity_multiplier": ("public calibration data", "anonymous dataset-scale effective activity", 0.5, 5.0),
+    "chemistry.wall_deposition_fraction": ("literature prior", "fraction of solid deposited at crack walls; public calibration pending", 0.05, 1.0),
+    "kinetics.activity_multiplier": ("scenario prior", "anonymous effective activity; public calibration pending", 0.5, 5.0),
 }

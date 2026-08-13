@@ -24,7 +24,13 @@ actually produced them.
 
 ## Current Release
 
-`v0.4.0` adds fixed-total-inventory dose semantics, practical identifiability,
+`v0.5.0` replaces heuristic bottleneck and experiment-ranking proxies with
+counterfactual model responses and numerical Fisher information. It also adds
+condition-resolved structure comparisons, anonymous design-to-parameter
+mapping, resumable parallel formal analysis, and evidence-gated figures.
+Public calibration and external evaluation remain incomplete.
+
+`v0.4.0` added fixed-total-inventory dose semantics, practical identifiability,
 prior predictive uncertainty, mechanistic model comparison, bottleneck
 classification, D-optimal experiment ranking, resumable parallel design
 matrices, unified run manifests, and prospective decision-support artifacts.

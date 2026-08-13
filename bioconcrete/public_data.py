@@ -62,6 +62,26 @@ def fetch_public_data(manifest_path: Path, root: Path, dataset_id: Optional[str]
         selected = {dataset_id: selected[dataset_id]}
     receipts = []
     for identifier, spec in selected.items():
+        provider = spec.get("provider", "zenodo")
+        if provider != "zenodo":
+            receipt = {
+                "dataset_id": identifier,
+                "provider": provider,
+                "doi": spec.get("doi", "pending_repository_metadata_verification"),
+                "role": spec["role"],
+                "license": spec.get("license", "pending_repository_metadata_verification"),
+                "landing_url": spec.get("landing_url"),
+                "downloaded_at_utc": None,
+                "status": "manual_download_required",
+                "files": [],
+            }
+            receipt_dir = root / "receipts"
+            receipt_dir.mkdir(parents=True, exist_ok=True)
+            (receipt_dir / "{}.json".format(identifier)).write_text(
+                json.dumps(receipt, indent=2), encoding="utf-8"
+            )
+            receipts.append(receipt)
+            continue
         api_available = True
         try:
             metadata = _record(int(spec["record_id"]))

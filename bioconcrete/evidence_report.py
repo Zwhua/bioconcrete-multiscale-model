@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Dict
 
+from .evidence_state import evidence_state
+
 
 def evidence_report(project_root: Path, run_dir: Path, output_dir: Path) -> Dict[str, object]:
     public_root = project_root / "data" / "public"
@@ -18,11 +20,13 @@ def evidence_report(project_root: Path, run_dir: Path, output_dir: Path) -> Dict
     }
     status = {name: ("complete" if path.exists() else "not_available") for name, path in paths.items()}
     receipts = sorted(path.stem for path in (public_root / "receipts").glob("*.json")) if (public_root / "receipts").exists() else []
+    state = evidence_state(run_dir, project_root / "model_runs" / "external_validation")
     report = {
         "project_experiment": {"rows": 0, "status": "not_available"},
         "public_data_receipts": receipts,
         "evidence_components": status,
-        "model_prediction_label": "public-data-supported prediction requiring prospective validation",
+        "model_prediction_label": state.label,
+        **state.to_dict(),
         "claims": {
             "team_wet_lab_data_used": False,
             "virtual_dbtl_claimed": False,

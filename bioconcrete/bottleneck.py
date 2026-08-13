@@ -1,4 +1,4 @@
-"""Transparent bottleneck classification for model scenarios."""
+"""Legacy heuristic bottleneck classification retained for V4 reproducibility."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ def classify_bottleneck(indicators: Mapping[str, float]) -> Dict[str, object]:
     return {
         "dominant_bottleneck": dominant, "score": scores[dominant],
         "scores": scores,
-        "basis": "dimensionless model-state indicators; not an experimental diagnosis",
-        "evidence_class": "model_assumption_and_prior_prediction",
+        "basis": "legacy_heuristic; excluded from V5 scientific conclusions",
+        "evidence_class": "legacy_heuristic",
     }
 
 

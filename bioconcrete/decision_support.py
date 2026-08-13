@@ -9,9 +9,6 @@ from typing import Dict
 
 import pandas as pd
 
-from .bottleneck import classify_bottleneck, indicators_from_row
-
-
 REQUIRED_FIELDS = (
     "recommended_condition", "control_condition", "predicted_benefit",
     "uncertainty", "major_risk", "applicability", "required_wet_lab",
@@ -21,16 +18,21 @@ REQUIRED_FIELDS = (
 
 
 def generate_decision_support(
-    design_matrix_path: Path, output_dir: Path, config_hash: str, code_hash: str
+    design_matrix_path: Path, output_dir: Path, config_hash: str, code_hash: str,
+    counterfactual_path: Path = None,
 ) -> Dict[str, object]:
     """Convert model scenarios into recommendations without validation claims."""
 
     frame = pd.read_csv(design_matrix_path)
     if frame.empty:
         raise ValueError("Design matrix is empty")
+    counterfactual = pd.read_csv(counterfactual_path) if counterfactual_path and counterfactual_path.exists() else pd.DataFrame()
+    dominant = (
+        str(counterfactual.sort_values("aggregate_control", ascending=False).iloc[0]["factor"])
+        if len(counterfactual) else "pending_counterfactual_analysis"
+    )
     records = []
     for _, row in frame.iterrows():
-        bottleneck = classify_bottleneck(indicators_from_row(row))
         records.append({
             "scenario_id": hashlib.sha256(row.to_json().encode()).hexdigest()[:12],
             "recommended_condition": "width={};dose={};wet={}h;activity={};delay={}h;leak={}".format(
@@ -39,14 +41,14 @@ def generate_decision_support(
             "control_condition": "default model configuration",
             "predicted_benefit": row.get("closure_28d"),
             "uncertainty": "prior predictive interval required",
-            "major_risk": bottleneck["dominant_bottleneck"],
+            "major_risk": dominant,
             "applicability": "0.1-0.5 mm cracks; configured prior domain",
             "required_wet_lab": "closure plus CaCO3 mass and substrate at matched time points",
             "success_threshold": 0.5, "failure_threshold": 0.1,
-            "evidence_level": "Model-informed experimental plan",
-            "rationale": "Pareto rank with {} bottleneck".format(bottleneck["dominant_bottleneck"]),
+            "evidence_level": "uncalibrated prospective model prediction",
+            "rationale": "Pareto rank with {} counterfactual status".format(dominant),
             "config_hash": config_hash, "code_hash": code_hash,
-            "decision": row.get("decision"), "dominant_bottleneck": bottleneck["dominant_bottleneck"],
+            "decision": row.get("decision"), "dominant_bottleneck": dominant,
         })
     decisions = pd.DataFrame(records)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -66,6 +68,6 @@ def generate_decision_support(
         encoding="utf-8",
     )
     provenance = {"config_hash": config_hash, "code_hash": code_hash,
-                  "evidence_class": "model_informed_experimental_plan", "required_fields": list(REQUIRED_FIELDS)}
+                  "evidence_class": "uncalibrated prospective model prediction", "required_fields": list(REQUIRED_FIELDS)}
     (output_dir / "decision_provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
     return {"scenarios": len(decisions), "recommended": int((decisions["decision"] == "recommended").sum())}

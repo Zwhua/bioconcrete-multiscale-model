@@ -1,0 +1,15 @@
+{
+  "dashboard": "model_runs\\v0.5.0\\dashboard\\index.html",
+  "static_fallback": "model_runs\\v0.5.0\\dashboard\\STATIC_FALLBACK.md",
+  "source_artifacts": {
+    "change": "model_runs\\v0.5.0\\biological_design\\construct_predictions.csv",
+    "controls": "model_runs\\v0.5.0\\counterfactual_bottleneck\\dominant_bottlenecks.csv",
+    "uncertainty": "model_runs\\v0.5.0\\uncertainty\\prior_predictive_summary.csv",
+    "design": "model_runs\\v0.5.0\\design_matrix\\design_matrix.csv",
+    "experiments": "model_runs\\v0.5.0\\experiment_design\\recommended_experiments.csv",
+    "missing": "model_runs\\v0.5.0\\release_status.json"
+  },
+  "team_wet_lab_rows": 0,
+  "generated_data": false,
+  "evidence_label": "uncalibrated prospective model prediction"
+}

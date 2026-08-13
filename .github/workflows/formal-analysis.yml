@@ -13,10 +13,18 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install -e .
+      - name: Initialize V5 release analysis
+        run: python -m bioconcrete release-analysis --version 0.5.0 --workers 16 --initialize-only
       - name: Formal Sobol analysis
-        run: python -m bioconcrete formal-sensitivity --samples 512 --output model_runs/formal_sensitivity
+        run: python -m bioconcrete formal-sensitivity --samples 1024 --workers 16 --resume --output model_runs/v0.5.0/sensitivity
       - name: Full preregistered design matrix
-        run: python -m bioconcrete design-matrix --workers 2 --resume --output model_runs/design_matrix
+        run: python -m bioconcrete design-matrix --workers 16 --resume --output model_runs/v0.5.0/design_matrix
+      - name: Numerical D-optimal experiment design
+        run: python -m bioconcrete design-experiments --method numerical-d-optimal --output model_runs/v0.5.0/experiment_design
+      - name: Render completed evidence
+        run: |
+          python -m bioconcrete render-figures --run model_runs/v0.5.0
+          python -m bioconcrete dashboard --run model_runs/v0.5.0 --output model_runs/v0.5.0/dashboard
       - uses: actions/upload-artifact@v4
         with:
           name: formal-analysis

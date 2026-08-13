@@ -27,6 +27,8 @@ data/*
 !data/README.md
 !data/public/
 !data/public/**
+!data/biological_design/
+!data/biological_design/**
 !data/processed/
 !data/processed/**
 data/public/raw/
@@ -41,6 +43,11 @@ model_runs/*
 !model_runs/final/**
 !model_runs/validation/
 !model_runs/validation/**
+!model_runs/v0.5.0/
+!model_runs/v0.5.0/**
+model_runs/v0.5.0/sensitivity/sensitivity_samples.csv
+model_runs/v0.5.0/design_matrix/design_matrix.csv
+model_runs/v0.5.0/uncertainty/prior_predictive_samples.csv
 
 # Local calibration inputs and transient outputs
 experiment*.csv

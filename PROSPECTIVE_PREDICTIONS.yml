@@ -1,6 +1,6 @@
 schema_version: 1
-release_candidate: v0.4.0
-status: prospective model predictions requiring future experimental validation
+release_candidate: v0.5.0
+status: uncalibrated prospective model prediction
 team_wet_lab_data_available: false
 predictions:
   - prediction_id: PRED-V4-001
@@ -12,7 +12,7 @@ predictions:
     failure_threshold: activity gain equals or exceeds dose gain
     applicability_domain: configured calcium-lactate and fixed-total-inventory model
     required_future_measurement: paired substrate depletion, CaCO3 mass and closure at 1, 7, 14 and 28 days
-    evidence_class: prospective model prediction requiring future experimental validation
+    evidence_class: uncalibrated prospective model prediction
     falsifies: the assumption that current performance is primarily activity-limited
   - prediction_id: PRED-V4-002
     biological_or_material_question: Does wider cracking reduce closure despite equal repair inventory?
@@ -23,7 +23,7 @@ predictions:
     failure_threshold: 0.5 mm closure equals or exceeds 0.3 mm closure
     applicability_domain: 0.1-0.5 mm cracks with matched volume-integrated inventory
     required_future_measurement: initial/current width maps and recovered CaCO3 mass
-    evidence_class: prospective model prediction requiring future experimental validation
+    evidence_class: uncalibrated prospective model prediction
     falsifies: the current wall-deposition geometry mapping if mass is matched
   - prediction_id: PRED-V4-003
     biological_or_material_question: Is continuous wetting beneficial because of oxygen availability?
@@ -34,7 +34,7 @@ predictions:
     failure_threshold: closure improves without oxygen exposure or declines despite higher oxygen
     applicability_domain: current boundary-transfer assumptions; not a universal curing claim
     required_future_measurement: dissolved oxygen, moisture state, substrate and closure time series
-    evidence_class: prospective model prediction requiring future experimental validation
+    evidence_class: uncalibrated prospective model prediction
     falsifies: the assumed oxygen-transfer explanation for wetting benefit
   - prediction_id: PRED-V4-004
     biological_or_material_question: Is most early closure caused by released C-S-H rather than CaCO3?
@@ -45,5 +45,5 @@ predictions:
     failure_threshold: calcite contribution dominates from the first measured day
     applicability_domain: current payload and wall-deposition priors
     required_future_measurement: abiotic control, mineral phase mass and crack-width microscopy
-    evidence_class: prospective model prediction requiring future experimental validation
+    evidence_class: uncalibrated prospective model prediction
     falsifies: the current C-S-H payload/release prior

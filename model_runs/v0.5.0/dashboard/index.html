@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>BioConcrete v0.5.0 Evidence Dashboard</title>
+<style>body{font-family:Arial,sans-serif;margin:0;color:#17211d;background:#f7f8f6}header{background:#163d34;color:white;padding:24px 5vw}
+nav{display:flex;gap:8px;overflow:auto;padding:10px 5vw;background:white;position:sticky;top:0}nav a{color:#174f42;white-space:nowrap}
+main{max-width:1200px;margin:auto;padding:20px}section{padding:16px 0;border-bottom:1px solid #ccd6d1}h1,h2{letter-spacing:0}
+.evidence{background:#e8f1ed;border-left:5px solid #24745e;padding:12px}.missing{color:#8a3f2c;font-weight:600}
+.data-table{border-collapse:collapse;width:100%;background:white;display:block;overflow:auto}th,td{padding:7px;border:1px solid #d8ddd9;font-size:12px}
+pre{white-space:pre-wrap;background:white;padding:12px}@media(max-width:600px){main{padding:12px}h1{font-size:25px}}</style></head>
+<body><header><h1>BioConcrete Model-to-Decision Dashboard</h1><p>Read-only v0.5.0 evidence system</p></header>
+<nav><a href='#change'>What did the model change?</a><a href='#controls'>What controls healing?</a><a href='#uncertainty'>How uncertain are predictions?</a><a href='#design'>Which design is recommended?</a><a href='#experiments'>Which experiment should be run next?</a><a href='#missing'>What evidence is still missing?</a></nav><main><div class="evidence"><strong>Evidence:</strong> uncalibrated prospective model prediction. Team wet-lab observations: 0. Public calibration: incomplete.</div>
+<section><h2>Interactive design explorer</h2><p class="missing">Interactive scenario view unavailable: design matrix missing.</p></section><section id='change'><h2>What did the model change?</h2><table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>candidate_id</th>
+      <th>design_category</th>
+      <th>parameter_multiplier</th>
+      <th>candidate_status</th>
+      <th>evidence_label</th>
+      <th>prediction_type</th>
+      <th>requires_measurement</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>anonymous_activity_baseline</td>
+      <td>candidate_enzyme_activity</td>
+      <td>1.0</td>
+      <td>prior scoring only</td>
+      <td>uncalibrated prospective model prediction</td>
+      <td>scenario parameter multiplier; not measured performance</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>anonymous_activity_high</td>
+      <td>candidate_enzyme_activity</td>
+      <td>2.0</td>
+      <td>prior scoring only</td>
+      <td>uncalibrated prospective model prediction</td>
+      <td>scenario parameter multiplier; not measured performance</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>low_leak_encapsulation</td>
+      <td>encapsulation_material</td>
+      <td>0.5</td>
+      <td>prospective material class</td>
+      <td>uncalibrated prospective model prediction</td>
+      <td>scenario parameter multiplier; not measured performance</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>no_csh_control</td>
+      <td>csh_payload</td>
+      <td>0.0</td>
+      <td>required control</td>
+      <td>uncalibrated prospective model prediction</td>
+      <td>scenario parameter multiplier; not measured performance</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table></section><section id='controls'><h2>What controls healing?</h2><p class="missing">Missing evidence. No demonstration data were substituted.</p></section><section id='uncertainty'><h2>How uncertain are predictions?</h2><p class="missing">Missing evidence. No demonstration data were substituted.</p></section><section id='design'><h2>Which design is recommended?</h2><p class="missing">Missing evidence. No demonstration data were substituted.</p></section><section id='experiments'><h2>Which experiment should be run next?</h2><p class="missing">Missing evidence. No demonstration data were substituted.</p></section><section id='missing'><h2>What evidence is still missing?</h2><pre>{
+  &quot;release_version&quot;: &quot;0.5.0&quot;,
+  &quot;release_directory&quot;: &quot;C:\\Users\\Lenovo\\Desktop\\igem\\model_runs\\v0.5.0&quot;,
+  &quot;initialized&quot;: true,
+  &quot;formal_analyses_complete&quot;: false,
+  &quot;long_run_required&quot;: true,
+  &quot;next_commands&quot;: [
+    &quot;formal-sensitivity --samples 1024 --workers 16 --resume&quot;,
+    &quot;design-matrix --workers 16 --resume&quot;,
+    &quot;counterfactual-bottleneck --workers 16 --resume&quot;,
+    &quot;design-experiments --method numerical-d-optimal&quot;
+  ],
+  &quot;evidence_label&quot;: &quot;uncalibrated prospective model prediction&quot;
+}</pre></section></main></body></html>

@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Optional, Sequence
 
+import pandas as pd
+
 from .analysis import calibrate, sensitivity
 from .chemistry import GeochemLookup, build_geochem_grid, compare_geochem_backends
 from .config import ModelConfig
@@ -28,6 +30,10 @@ from .model_comparison import compare_structures
 from .dashboard import generate_dashboard
 from .decision_support import generate_decision_support
 from .manifest import create_manifest, finish_manifest, write_manifest
+from .counterfactual import counterfactual_bottleneck
+from .biological_design import generate_biological_design
+from .release_analysis import release_analysis
+from .visualization import render_figures
 
 
 def _root() -> Path:
@@ -100,6 +106,8 @@ def build_parser() -> argparse.ArgumentParser:
     formal.add_argument("--config")
     formal.add_argument("--output", default="model_runs/formal_sensitivity")
     formal.add_argument("--samples", type=int, default=256)
+    formal.add_argument("--workers", type=int, default=1)
+    formal.add_argument("--resume", action="store_true")
 
     identifiability = subparsers.add_parser(
         "identifiability", help="run practical local/Fisher identifiability diagnostics"
@@ -119,19 +127,49 @@ def build_parser() -> argparse.ArgumentParser:
     structures = subparsers.add_parser("compare-models", help="compare mechanistic and baseline structures")
     structures.add_argument("--config")
     structures.add_argument("--output", default="model_runs/model_comparison")
+    structures.add_argument("--observations")
 
     experiments = subparsers.add_parser("design-experiments", help="rank prospective experiments by D-optimality")
     experiments.add_argument("--config")
     experiments.add_argument("--output", default="model_runs/experiment_design")
+    experiments.add_argument("--method", choices=("numerical-d-optimal",), default="numerical-d-optimal")
+    experiments.add_argument("--smoke", action="store_true")
+
+    counterfactual = subparsers.add_parser(
+        "counterfactual-bottleneck", help="calculate model-response control coefficients"
+    )
+    counterfactual.add_argument("--config")
+    counterfactual.add_argument("--output", default="model_runs/counterfactual_bottleneck")
+    counterfactual.add_argument("--perturbations", default="-0.2,-0.1,0.1,0.2")
+    counterfactual.add_argument("--workers", type=int, default=1)
+    counterfactual.add_argument("--resume", action="store_true")
+
+    biological = subparsers.add_parser(
+        "biological-design", help="export anonymous design-to-parameter mappings"
+    )
+    biological.add_argument("--output", default="model_runs/biological_design")
+
+    release = subparsers.add_parser("release-analysis", help="initialize or resume v0.5.0 formal analyses")
+    release.add_argument("--version", default="0.5.0")
+    release.add_argument("--config")
+    release.add_argument("--workers", type=int, default=16)
+    release.add_argument("--resume", action="store_true")
+    release.add_argument("--initialize-only", action="store_true")
 
     dashboard = subparsers.add_parser("dashboard", help="generate a read-only static evidence dashboard")
     dashboard.add_argument("--output", default="model_runs/dashboard")
+    dashboard.add_argument("--run")
+
+    figures = subparsers.add_parser("render-figures", help="render V5 scientific figures from completed artifacts")
+    figures.add_argument("--run", default="model_runs/v0.5.0")
+    figures.add_argument("--output")
 
     decisions = subparsers.add_parser("decision-support", help="build model-informed decision tables")
     decisions.add_argument("--design-matrix", default="model_runs/design_matrix/design_matrix.csv")
     decisions.add_argument("--config-hash", required=True)
     decisions.add_argument("--code-hash", required=True)
     decisions.add_argument("--output", default="model_runs/decision_support")
+    decisions.add_argument("--counterfactual")
 
     public_cal = subparsers.add_parser("calibrate-public", help="fit public calibration data with specimen holdout")
     public_cal.add_argument("--train", required=True)
@@ -225,7 +263,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         return
     if args.command == "formal-sensitivity":
         manifest = create_manifest(root, _config(args.config), ["formal-sensitivity"], 2026)
-        _, sobol = formal_sensitivity(Path(args.output), _config(args.config), args.samples)
+        _, sobol = formal_sensitivity(
+            Path(args.output), _config(args.config), args.samples, 2026, args.workers, args.resume
+        )
         write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(sobol.sort_values("ST", ascending=False).to_string(index=False))
         return
@@ -245,23 +285,48 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         return
     if args.command == "compare-models":
         manifest = create_manifest(root, _config(args.config), ["compare-models"], 2026)
-        result = compare_structures(Path(args.output), _config(args.config))
+        observations = pd.read_csv(args.observations) if args.observations else None
+        result = compare_structures(Path(args.output), _config(args.config), observations)
         write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
     if args.command == "design-experiments":
         manifest = create_manifest(root, _config(args.config), ["design-experiments"], 2026)
-        result = rank_experiments(Path(args.output), _config(args.config))
+        result = rank_experiments(Path(args.output), _config(args.config), smoke=args.smoke)
         write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
         print(json.dumps(result, indent=2))
         return
+    if args.command == "counterfactual-bottleneck":
+        changes = tuple(float(value) for value in args.perturbations.split(","))
+        manifest = create_manifest(root, _config(args.config), ["counterfactual-bottleneck"], 2026)
+        result = counterfactual_bottleneck(
+            Path(args.output), _config(args.config), changes, args.workers, args.resume
+        )
+        write_manifest(Path(args.output) / "run_manifest.json", finish_manifest(manifest))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "biological-design":
+        result = generate_biological_design(Path(args.output))
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "release-analysis":
+        result = release_analysis(
+            root, args.version, _config(args.config), args.workers, args.resume, args.initialize_only
+        )
+        print(json.dumps(result, indent=2))
+        return
     if args.command == "dashboard":
-        result = generate_dashboard(root, Path(args.output))
+        result = generate_dashboard(root, Path(args.output), Path(args.run) if args.run else None)
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "render-figures":
+        result = render_figures(Path(args.run), Path(args.output) if args.output else None)
         print(json.dumps(result, indent=2))
         return
     if args.command == "decision-support":
         result = generate_decision_support(
-            Path(args.design_matrix), Path(args.output), args.config_hash, args.code_hash
+            Path(args.design_matrix), Path(args.output), args.config_hash, args.code_hash,
+            Path(args.counterfactual) if args.counterfactual else None,
         )
         print(json.dumps(result, indent=2))
         return

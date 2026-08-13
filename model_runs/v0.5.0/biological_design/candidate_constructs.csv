@@ -1,0 +1,5 @@
+candidate_id,design_category,parameter_multiplier,candidate_status,evidence_label
+anonymous_activity_baseline,candidate_enzyme_activity,1.0,prior scoring only,uncalibrated prospective model prediction
+anonymous_activity_high,candidate_enzyme_activity,2.0,prior scoring only,uncalibrated prospective model prediction
+low_leak_encapsulation,encapsulation_material,0.5,prospective material class,uncalibrated prospective model prediction
+no_csh_control,csh_payload,0.0,required control,uncalibrated prospective model prediction
