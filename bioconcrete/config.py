@@ -26,6 +26,7 @@ class EnvironmentConfig:
     oxygen_boundary_mol_m3: float = 0.25
     oxygen_initial_mol_m3: float = 0.02
     inorganic_carbon_boundary_mol_m3: float = 0.015
+    inorganic_carbon_initial_mol_m3: float = 0.0
     ph: float = 11.5
     temperature_c: float = 30.0
     exposure: str = "intermittent"
@@ -120,12 +121,67 @@ class TransportConfig:
 
 
 @dataclass
+class Geometry3DConfig:
+    mode: str = "rectangular"
+    topology: str = "blind_crack"
+    nx: int = 51
+    ny: int = 5
+    nz: int = 21
+    capsule_count: int = 24
+    capsule_spread_x_mm: float = 2.0
+    capsule_spread_y_mm: float = 0.06
+    capsule_spread_z_mm: float = 1.0
+    capsule_depth_mode: str = "uniform"
+    aperture_field_path: Optional[str] = None
+
+
+@dataclass
+class Boundary3DConfig:
+    x_min: str = "exposed"
+    x_max: str = "no_flux"
+    y_min: str = "crack_wall"
+    y_max: str = "crack_wall"
+    z_min: str = "no_flux"
+    z_max: str = "no_flux"
+    oxygen_supply_mode: str = "boundary_robin"
+    oxygen_mass_transfer_m_s: float = 2.0e-6
+    carbon_mass_transfer_m_s: float = 2.0e-6
+
+
+@dataclass
+class Solver3DConfig:
+    splitting_scheme: str = "strang"
+    linear_solver: str = "auto"
+    reaction_batch_cells: int = 64
+    relative_tolerance: float = 1.0e-6
+    absolute_tolerance: float = 1.0e-10
+    maximum_linear_iterations: int = 500
+    checkpoint_interval_steps: int = 24
+    memory_limit_gb: float = 8.0
+    reaction_workers: int = 1
+    reaction_parallel_backend: str = "serial"
+
+
+@dataclass
+class Output3DConfig:
+    storage_format: str = "zarr"
+    storage_dtype: str = "float64"
+    save_full_state: bool = True
+    save_every_days: float = 1.0
+    compression: str = "zstd"
+
+
+@dataclass
 class ModelConfig:
     simulation: SimulationConfig = field(default_factory=SimulationConfig)
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     kinetics: MicrobialKineticsConfig = field(default_factory=MicrobialKineticsConfig)
     chemistry: ChemistryConfig = field(default_factory=ChemistryConfig)
     transport: TransportConfig = field(default_factory=TransportConfig)
+    geometry_3d: Geometry3DConfig = field(default_factory=Geometry3DConfig)
+    boundary_3d: Boundary3DConfig = field(default_factory=Boundary3DConfig)
+    solver_3d: Solver3DConfig = field(default_factory=Solver3DConfig)
+    output_3d: Output3DConfig = field(default_factory=Output3DConfig)
 
     def validate(self) -> None:
         if self.simulation.days <= 0 or self.simulation.reaction_step_h <= 0:
@@ -154,6 +210,26 @@ class ModelConfig:
             raise ValueError("Each spatial grid dimension must contain at least three cells")
         if self.transport.crack_width_mm <= 0 or self.transport.crack_length_mm <= 0:
             raise ValueError("Crack dimensions must be positive")
+        if self.geometry_3d.mode not in {"rectangular", "aperture_field", "voxel_ct"}:
+            raise ValueError("Unsupported 3D geometry mode")
+        if self.geometry_3d.topology not in {"blind_crack", "through_crack"}:
+            raise ValueError("Unsupported crack topology")
+        if min(self.geometry_3d.nx, self.geometry_3d.ny, self.geometry_3d.nz) < 2:
+            raise ValueError("Each 3D grid dimension must contain at least two cells")
+        if self.geometry_3d.capsule_depth_mode not in {"uniform", "surface", "layered"}:
+            raise ValueError("capsule_depth_mode must be uniform, surface, or layered")
+        if self.boundary_3d.oxygen_supply_mode not in {"legacy_volumetric", "boundary_robin"}:
+            raise ValueError("Unsupported 3D oxygen supply mode")
+        if self.solver_3d.splitting_scheme not in {"lie", "strang"}:
+            raise ValueError("splitting_scheme must be lie or strang")
+        if self.solver_3d.linear_solver not in {"direct", "cg", "gmres", "bicgstab", "auto"}:
+            raise ValueError("Unsupported 3D linear solver")
+        if self.solver_3d.reaction_batch_cells <= 0 or self.solver_3d.memory_limit_gb <= 0:
+            raise ValueError("3D solver batch and memory limits must be positive")
+        if self.solver_3d.reaction_workers <= 0:
+            raise ValueError("reaction_workers must be positive")
+        if self.solver_3d.reaction_parallel_backend not in {"serial", "thread", "process"}:
+            raise ValueError("reaction_parallel_backend must be serial, thread, or process")
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -174,6 +250,10 @@ class ModelConfig:
                 kinetics=_load_dataclass(MicrobialKineticsConfig, raw.get("kinetics", {})),
                 chemistry=_load_dataclass(ChemistryConfig, raw.get("chemistry", {})),
                 transport=_load_dataclass(TransportConfig, raw.get("transport", {})),
+                geometry_3d=_load_dataclass(Geometry3DConfig, raw.get("geometry_3d", {})),
+                boundary_3d=_load_dataclass(Boundary3DConfig, raw.get("boundary_3d", {})),
+                solver_3d=_load_dataclass(Solver3DConfig, raw.get("solver_3d", {})),
+                output_3d=_load_dataclass(Output3DConfig, raw.get("output_3d", {})),
             )
         config.validate()
         return config

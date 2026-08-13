@@ -15,6 +15,7 @@ from .chemistry import GeochemLookup, build_geochem_grid, compare_geochem_backen
 from .config import ModelConfig
 from .data_pipeline import prepare_data
 from .model import simulate_0d, simulate_1d, simulate_2d
+from .model_3d import simulate_3d
 from .report import generate_report
 from .validation import run_validation
 from .evidence import calibrate_public, fit_measurement_error, validate_external
@@ -34,6 +35,9 @@ from .counterfactual import counterfactual_bottleneck
 from .biological_design import generate_biological_design
 from .release_analysis import release_analysis
 from .visualization import render_figures
+from .validation_3d import run_validation_3d
+from .io_3d import save_formal_run_3d
+from .visualization_3d import render_formal_3d
 
 
 def _root() -> Path:
@@ -85,11 +89,15 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--metadata", default="data/processed/geochem/geochem_metadata.json")
     compare.add_argument("--output", default="model_runs/geochem_comparison")
 
-    simulate = subparsers.add_parser("simulate", help="run the 0D, 1D, or true 2D model")
-    simulate.add_argument("--level", choices=("0d", "1d", "2d"), required=True)
+    simulate = subparsers.add_parser("simulate", help="run a 0D, 1D, 2D, or true 3D model")
+    simulate.add_argument("--level", choices=("0d", "1d", "2d", "3d"), required=True)
     simulate.add_argument("--config")
     simulate.add_argument("--geochem-grid")
     simulate.add_argument("--output", default="model_runs")
+    simulate.add_argument("--resume", action="store_true")
+    simulate.add_argument("--checkpoint")
+    simulate.add_argument("--memory-limit-gb", type=float)
+    simulate.add_argument("--linear-solver", choices=("auto","direct","cg","gmres","bicgstab"))
 
     calibration = subparsers.add_parser("calibrate", help="fit population, precipitation, and release rates")
     calibration.add_argument("--data", required=True)
@@ -210,6 +218,14 @@ def build_parser() -> argparse.ArgumentParser:
     validation.add_argument("--config")
     validation.add_argument("--output", default="model_runs/validation")
     validation.add_argument("--full", action="store_true")
+    validation_3d = subparsers.add_parser("validate-3d", help="run Gate-D 3D verification")
+    validation_3d.add_argument("--config")
+    validation_3d.add_argument("--output", default="model_runs/v0.6.0/validation_3d")
+    validation_3d.add_argument("--full", action="store_true")
+    render_3d = subparsers.add_parser("render-3d", help="render Gate-D-approved 3D run")
+    render_3d.add_argument("--run", required=True)
+    render_3d.add_argument("--output")
+    render_3d.add_argument("--validation", default="model_runs/v0.6.0/validation_3d/validation_3d.json")
     return parser
 
 
@@ -244,7 +260,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         return
     if args.command == "simulate":
         config = _config(args.config)
+        if args.memory_limit_gb is not None: config.solver_3d.memory_limit_gb=args.memory_limit_gb
+        if args.linear_solver is not None: config.solver_3d.linear_solver=args.linear_solver
         lookup = _lookup(args.geochem_grid)
+        if args.level == '3d':
+            result=simulate_3d(config,lookup,checkpoint=Path(args.checkpoint) if args.checkpoint else None,resume=args.resume)
+            run_dir=save_formal_run_3d(result,Path(args.output),
+                Path('model_runs/v0.6.0/validation_3d/validation_3d.json'))
+            print(run_dir.resolve());print(json.dumps(result.summary,indent=2));return
         runner = {"0d": simulate_0d, "1d": simulate_1d, "2d": simulate_2d}[args.level]
         result = runner(config, lookup)
         run_dir = _run_dir(Path(args.output), args.level)
@@ -372,3 +395,12 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.command == "validate":
         result = run_validation(Path(args.output), _config(args.config), args.full)
         print(json.dumps(result, indent=2))
+        return
+    if args.command == "validate-3d":
+        result = run_validation_3d(Path(args.output), _config(args.config), args.full)
+        print(json.dumps(result, indent=2))
+        return
+    if args.command == "render-3d":
+        products=render_formal_3d(Path(args.run),Path(args.validation),
+                                  Path(args.output) if args.output else None)
+        print(json.dumps(products,indent=2))

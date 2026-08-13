@@ -15,41 +15,10 @@ from scipy.sparse.linalg import spsolve
 
 from .chemistry import GeochemLookup, carbonate_fractions, ph_from_alkalinity
 from .config import ModelConfig
+from .state import DISSOLVED, S, STATE_NAMES
 
 
 SECONDS_PER_DAY = 86400.0
-STATE_NAMES = (
-    "capsule_calcium_lactate_mol_m3",
-    "spore_density_rel",
-    "active_density_rel",
-    "lactate_mol_m3",
-    "oxygen_mol_m3",
-    "calcium_mol_m3",
-    "inorganic_carbon_mol_m3",
-    "hydrated_carbon_mol_m3",
-    "portlandite_mol_m3",
-    "calcite_mol_m3",
-    "csh_volume_fraction",
-    "biomass_carbon_mol_m3",
-    "ammonium_mol_m3",
-    "total_alkalinity_mol_m3",
-    "environment_signal",
-    "activation_state",
-    "activation_memory_h",
-    "tracked_oxygen_mol_m3",
-    "tracked_ph",
-    "cumulative_activity_h",
-    "premature_consumption_mol_m3",
-    "activation_delay_h",
-)
-S = {name: index for index, name in enumerate(STATE_NAMES)}
-DISSOLVED = {
-    S["lactate_mol_m3"]: "lactate",
-    S["oxygen_mol_m3"]: "oxygen",
-    S["calcium_mol_m3"]: "calcium",
-    S["inorganic_carbon_mol_m3"]: "carbon",
-    S["hydrated_carbon_mol_m3"]: "carbon",
-}
 
 
 @dataclass
@@ -141,10 +110,17 @@ def _initial_state(
     state[:, S["spore_density_rel"]] = config.kinetics.spore_density_rel * dosage * capsule_profile
     state[:, S["active_density_rel"]] = config.kinetics.active_density_rel * dosage * capsule_profile
     state[:, S["oxygen_mol_m3"]] = config.environment.oxygen_initial_mol_m3
+    state[:, S["inorganic_carbon_mol_m3"]] = config.environment.inorganic_carbon_initial_mol_m3
     state[:, S["portlandite_mol_m3"]] = config.chemistry.portlandite_mol_m3
     state[:, S["total_alkalinity_mol_m3"]] = config.environment.initial_alkalinity_mol_m3
     state[:, S["tracked_oxygen_mol_m3"]] = 0.0
     state[:, S["tracked_ph"]] = min(config.environment.ph_maximum, config.environment.ph + 0.5)
+    if config.simulation.carbonate_mode == "equilibrium":
+        ph = _state_ph(state, config)
+        _, alpha_hco3, alpha_co3 = carbonate_fractions(ph, config.environment.temperature_c)
+        state[:, S["hydrated_carbon_mol_m3"]] = (
+            alpha_hco3 + alpha_co3
+        ) * state[:, S["inorganic_carbon_mol_m3"]]
     return state
 
 

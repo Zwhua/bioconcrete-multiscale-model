@@ -6,6 +6,7 @@ __pycache__/
 .coverage
 .venv/
 venv/
+.deps38/
 
 # IDE and operating-system files
 .vscode/

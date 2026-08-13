@@ -1,0 +1,22 @@
+name: manual-three-d-analysis
+on:
+  workflow_dispatch:
+jobs:
+  verify-3d:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install '.[three-d,visualization-3d]'
+      - run: python -m unittest tests.test_grid_3d tests.test_transport_3d tests.test_mms_3d tests.test_model_3d tests.test_visualization_3d -v
+      - run: python -m bioconcrete validate-3d --output model_runs/v0.6.0/validation_3d --full
+      - uses: actions/upload-artifact@v4
+        with:
+          name: three-d-validation-${{ matrix.python-version }}
+          path: model_runs/v0.6.0/validation_3d

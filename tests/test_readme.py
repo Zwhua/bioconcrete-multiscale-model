@@ -25,10 +25,27 @@ class ReadmeTests(unittest.TestCase):
     def test_bilingual_evidence_and_numbers_match(self) -> None:
         for readme in READMES:
             text = readme.read_text(encoding="utf-8")
-            for required in ("v0.5.1", "2.0819%", "2.08023", "0.00168", "0.9388", "82"):
+            for required in (
+                "v0.5.1",
+                "v0.6.0-development",
+                "2.0819%",
+                "2.08023",
+                "0.00168",
+                "0.9388",
+                "0.606%",
+                "128",
+            ):
                 self.assertIn(required, text)
             self.assertNotIn("public-data-supported prediction", text)
             self.assertNotIn("fully validated", text.lower())
+
+    def test_3d_results_retain_the_evidence_boundary(self) -> None:
+        for readme in READMES:
+            text = readme.read_text(encoding="utf-8")
+            self.assertIn("Gate D", text)
+            self.assertIn("Not experimental data", text)
+            self.assertIn("21×3×9", text)
+            self.assertIn("81×7×33", text)
 
     def test_current_readme_does_not_present_v4_commands(self) -> None:
         for readme in READMES:

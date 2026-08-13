@@ -21,6 +21,11 @@ dependencies = [
   "SALib>=1.4.7,<1.5",
 ]
 
+[project.optional-dependencies]
+three-d = ["xarray>=2022.6,<2024; python_version<'3.9'", "xarray>=2023.1; python_version>='3.9'", "zarr>=2.13,<3", "numcodecs>=0.10"]
+visualization-3d = ["pyvista>=0.39"]
+hpc = ["mpi4py", "petsc4py"]
+
 [project.scripts]
 bioconcrete = "bioconcrete.cli:main"
 

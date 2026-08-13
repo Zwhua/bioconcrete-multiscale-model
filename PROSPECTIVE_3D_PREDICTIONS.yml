@@ -1,0 +1,19 @@
+version: 0.6.0-development
+evidence_label: prospective uncalibrated 3D model prediction
+status: frozen_before_formal_representative_runs
+predictions:
+  - id: depth_layout
+    hypothesis: Equal-inventory depth-uniform or layered capsules improve minimum depth closure relative to surface-concentrated capsules.
+    metrics: [minimum_depth_closure, depth_closure_cv, open_channel_fraction]
+    success: minimum_depth_closure_improvement_relative_ge_0.10
+    failure: minimum_depth_closure_improvement_relative_lt_0.02
+  - id: surface_vs_connectivity
+    hypothesis: High entrance-surface closure does not necessarily imply low interior connectivity.
+    metrics: [surface_closure, inlet_to_deep_open_path]
+    success: surface_closure_ge_0.80_and_open_path_true
+    failure: no_case_with_surface_closure_ge_0.80_and_open_path_true
+  - id: reduction_domain
+    hypothesis: 2.5D and 3D agree when aperture mixing is fast, and diverge under strong aperture reaction or boundary gradients.
+    metrics: [calcite_mass_error, area_closure_error, oxygen_penetration_error]
+    success: fast_mixing_max_error_lt_0.05_and_strong_gradient_max_error_gt_0.10
+    failure: fast_mixing_max_error_ge_0.10
