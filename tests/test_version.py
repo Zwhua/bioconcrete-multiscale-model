@@ -16,10 +16,12 @@ class VersionTests(unittest.TestCase):
         ).group(1)
         citation = yaml.safe_load((root / "CITATION.cff").read_text(encoding="utf-8"))
         readme = (root / "README.md").read_text(encoding="utf-8")
+        readme_zh = (root / "README.zh-CN.md").read_text(encoding="utf-8")
         self.assertEqual(bioconcrete.__version__, project_version)
         self.assertEqual(str(citation["version"]), project_version)
         self.assertIn("version-v{}".format(project_version), readme)
-        self.assertIn("当前软件版本为 **v{}**".format(project_version), readme)
+        self.assertIn("Current release: [v{}]".format(project_version), readme)
+        self.assertIn("当前版本：[v{}]".format(project_version), readme_zh)
 
 
 if __name__ == "__main__":

@@ -24,6 +24,9 @@ actually produced them.
 
 ## Current Release
 
+`v0.5.1` redesigns the bilingual repository homepage and Model-to-Decision
+figure without changing model equations, parameters, or scientific outputs.
+
 `v0.5.0` replaces heuristic bottleneck and experiment-ranking proxies with
 counterfactual model responses and numerical Fisher information. It also adds
 condition-resolved structure comparisons, anonymous design-to-parameter

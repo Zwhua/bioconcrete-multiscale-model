@@ -21,8 +21,13 @@ COLORS = {"calcite": "#0072B2", "csh": "#E69F00", "other": "#009E73", "missing":
 def _save(fig: plt.Figure, base: Path) -> None:
     fig.tight_layout()
     fig.savefig(base.with_suffix(".png"), dpi=220)
-    fig.savefig(base.with_suffix(".svg"))
+    svg_path = base.with_suffix(".svg")
+    fig.savefig(svg_path)
     plt.close(fig)
+    # Matplotlib writes trailing spaces in path data; normalize generated SVGs
+    # so repository whitespace checks remain deterministic.
+    lines = svg_path.read_text(encoding="utf-8").splitlines()
+    svg_path.write_text("\n".join(line.rstrip() for line in lines) + "\n", encoding="utf-8")
 
 
 def _provenance(run_dir: Path) -> str:
@@ -37,17 +42,40 @@ def _provenance(run_dir: Path) -> str:
 
 
 def _decision_flow(output: Path, footer: str) -> None:
-    labels = ["Design categories", "Measurable parameters", "Reaction/transport",
-              "Mineral deposition", "Crack closure", "Counterfactual control", "Next experiment"]
-    fig, axis = plt.subplots(figsize=(12, 2.6)); axis.set_axis_off()
-    for index, label in enumerate(labels):
-        x = index / (len(labels) - 1)
-        axis.text(x, .55, label, ha="center", va="center", fontsize=9,
-                  bbox={"boxstyle": "round,pad=.35", "fc": "#E8F1ED", "ec": "#24745E"})
-        if index < len(labels) - 1:
-            axis.annotate("", (x + 0.07, .55), (x + 0.02, .55), arrowprops={"arrowstyle": "->"})
-    axis.set_title("Model-to-decision evidence chain")
-    axis.text(0, .05, footer, fontsize=7, transform=axis.transAxes)
+    stages = [
+        ("BIOLOGICAL DESIGN", "Anonymous design\ncategories", "#DDEFE8", "#176B57"),
+        ("PARAMETERS", "Release, activity,\nleakage and payload", "#DDEFE8", "#176B57"),
+        ("MECHANISM", "Activation, reaction\nand transport", "#DDEBF4", "#176B87"),
+        ("DEPOSITION", "CaCO3 precipitation\nand C-S-H filling", "#DDEBF4", "#176B87"),
+        ("ENGINEERING", "Crack closure and\npermeability", "#E5EAF2", "#405A78"),
+        ("EVIDENCE", "Uncertainty and\ncounterfactual control", "#E5EAF2", "#405A78"),
+        ("DECISION", "Recommended\nfalsifiable experiment", "#FCE8D5", "#C7661C"),
+    ]
+    fig, axis = plt.subplots(figsize=(14.4, 4.2))
+    fig.patch.set_facecolor("white")
+    axis.set(xlim=(-0.04, 1.04), ylim=(0, 1))
+    axis.set_axis_off()
+    xs = np.linspace(0.04, 0.96, len(stages))
+    box_width = 0.125
+    for index, ((heading, body, fill, edge), x) in enumerate(zip(stages, xs)):
+        axis.text(
+            x, .55, body, ha="center", va="center", fontsize=10.2, color="#18342E",
+            linespacing=1.35,
+            bbox={"boxstyle": "round,pad=.72,rounding_size=.14", "fc": fill, "ec": edge, "lw": 1.7},
+        )
+        axis.text(x, .81, heading, ha="center", va="center", fontsize=8.2,
+                  color=edge, fontweight="bold")
+        if index < len(stages) - 1:
+            start = x + box_width / 2
+            end = xs[index + 1] - box_width / 2
+            axis.annotate("", xy=(end, .55), xytext=(start, .55),
+                          arrowprops={"arrowstyle": "-|>", "color": "#58726B", "lw": 1.4,
+                                      "shrinkA": 1, "shrinkB": 1})
+    axis.text(.5, .95, "From repair-agent design to an auditable experiment",
+              ha="center", va="center", fontsize=16, color="#123C33", fontweight="bold")
+    axis.text(.5, .13,
+              "Mechanistic architecture | 0D, 1D and true 2D | model structure, not experimental evidence",
+              ha="center", va="center", fontsize=9, color="#52635F")
     _save(fig, output)
 
 
